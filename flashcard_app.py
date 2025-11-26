@@ -194,7 +194,7 @@ st.markdown("""
 
     /* Click Animation: When focused/active, scale down then ease back */
     .stButton > button:focus:not(:active) {
-         animation: buttonPress 0.6s ease-out;
+         animation: buttonPress 0.2s ease-out;
     }
     .stButton > button:active {
         transform: scale(0.96);
@@ -218,7 +218,7 @@ st.markdown("""
 
     /* Apply the same click animation to primary buttons */
     div[data-testid="stButton"] > button[kind="primary"]:focus:not(:active) {
-        animation: buttonPress 0.6s ease-out;
+        animation: buttonPress 0.2s ease-out;
     }
     
     /* Navigation Arrow Buttons */
@@ -448,3 +448,4 @@ else:
         st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
         st.session_state.font_size = st.slider("Font Size", min_value=16, max_value=48, value=st.session_state.font_size, step=2, label_visibility="collapsed")
         st.markdown("</div>", unsafe_allow_html=True)
+

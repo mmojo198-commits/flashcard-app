@@ -39,62 +39,31 @@ st.markdown("""
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    
-    /* 3D Flip Animation Styles */
-    .card-container {
-        perspective: 1000px;
+    .flashcard {
+        background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
+        border-radius: 24px;
+        padding: 60px 40px;
         margin: 40px auto;
         max-width: 700px;
         min-height: 400px;
-    }
-    .card-flipper {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        min-height: 400px;
-        transform-style: preserve-3d;
-        transition: transform 0.6s ease-in-out;
-    }
-    .card-flipper.flipped {
-        transform: rotateY(180deg);
-    }
-    .card-face {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        min-height: 400px;
-        max-height: 500px;
-        backface-visibility: hidden;
-        border-radius: 24px;
-        padding: 40px 40px;
         box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        border: 1px solid #475569;
         display: flex;
         flex-direction: column;
-        justify-content: flex-start;
+        justify-content: center;
         align-items: center;
         text-align: center;
-        overflow-y: auto;
-        overflow-x: hidden;
+        transition: all 0.3s ease;
     }
-    .card-front {
-        background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
-        border: 1px solid #475569;
-    }
-    .card-back {
+    .flashcard-answer {
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         border: 1px solid #059669;
-        transform: rotateY(180deg);
     }
-    
     .card-text {
         color: white;
         line-height: 1.6;
         font-weight: 400;
         margin: 0;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-        max-width: 100%;
-        padding: 20px 0;
     }
     .card-label {
         color: #e2e8f0;
@@ -103,25 +72,7 @@ st.markdown("""
         letter-spacing: 2px;
         margin-bottom: 20px;
         font-weight: 600;
-        flex-shrink: 0;
     }
-    
-    /* Custom scrollbar for card content */
-    .card-face::-webkit-scrollbar {
-        width: 8px;
-    }
-    .card-face::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-    }
-    .card-face::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 10px;
-    }
-    .card-face::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.5);
-    }
-    
     .stButton > button {
         background: #4f46e5;
         color: white;
@@ -187,26 +138,6 @@ st.markdown("""
     .stSlider {
         margin: 0 !important;
         padding: 0 !important;
-        max-width: 220px !important;
-    }
-    
-    /* Jump to card input styling - CENTER ALIGNED */
-    .stNumberInput {
-        max-width: 150px !important;
-        margin: 0 auto !important;
-        display: flex !important;
-        justify-content: center !important;
-    }
-    .stNumberInput > div {
-        margin: 0 auto !important;
-    }
-    .stNumberInput > div > div > input {
-        text-align: center !important;
-        color: white !important;
-        background: rgba(255,255,255,0.1) !important;
-        border-radius: 8px !important;
-        border: 1px solid #475569 !important;
-        font-weight: 600 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -225,8 +156,6 @@ if 'file_loaded' not in st.session_state:
     st.session_state.file_loaded = False
 if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
-if 'font_size' not in st.session_state:
-    st.session_state.font_size = 28
 
 # --- Data Loading Function (FIXED) ---
 
@@ -345,7 +274,7 @@ else:
     current_num = st.session_state.current_index + 1
 
     # Header with dynamic title
-    col1, col2 = st.columns([4, 1])
+    col1, col2 = st.columns([3, 1])
     with col1:
         st.markdown(f"<h1>🧠 {st.session_state.app_title}</h1>", unsafe_allow_html=True)
     with col2:
@@ -358,7 +287,7 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Main card area with navigation
-    col1, col2, col3 = st.columns([1, 6, 1])
+    col1, col2, col3 = st.columns([0.5, 6, 0.5])
 
     with col1:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -367,29 +296,23 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        flip_class = "flipped" if st.session_state.show_answer else ""
+        card_class = "flashcard-answer" if st.session_state.show_answer else "flashcard"
+        label = "ANSWER" if st.session_state.show_answer else "QUESTION"
+        text = current_card['answer'] if st.session_state.show_answer else current_card['question']
         
-        # 3D Flip Card Container
+        # Get font size from session state or set default
+        if 'font_size' not in st.session_state:
+            st.session_state.font_size = 28
+        
         st.markdown(f"""
-        <div class="card-container">
-            <div class="card-flipper {flip_class}">
-                <!-- Front of Card (Question) -->
-                <div class="card-face card-front">
-                    <div class="card-label">QUESTION</div>
-                    <p class="card-text" style="font-size: {st.session_state.font_size}px;">{current_card['question']}</p>
-                </div>
-                <!-- Back of Card (Answer) -->
-                <div class="card-face card-back">
-                    <div class="card-label">ANSWER</div>
-                    <p class="card-text" style="font-size: {st.session_state.font_size}px;">{current_card['answer']}</p>
-                </div>
-            </div>
+        <div class="flashcard {card_class}">
+            <div class="card-label">{label}</div>
+            <p class="card-text" style="font-size: {st.session_state.font_size}px;">{text}</p>
         </div>
         """, unsafe_allow_html=True)
-        
         col_a, col_b, col_c = st.columns([2, 1, 2])
         with col_b:
-            button_text = "🔄 Flip Card"
+            button_text = "🔄 Flip Card" if not st.session_state.show_answer else "👁️ Hide Answer"
             if st.button(button_text, 
                          on_click=toggle_answer, 
                          use_container_width=True,
@@ -402,9 +325,9 @@ else:
         st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Footer with progress and controls - UPDATED LAYOUT
+    # Footer with progress and controls
     st.markdown("<br><br>", unsafe_allow_html=True)
-    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2.5, 1, 1])
+    col1_footer, col2_footer, col3_footer = st.columns([1.2, 1.8, 1])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
@@ -421,39 +344,41 @@ else:
     with col2_footer:
         progress = current_num / total_cards
         st.progress(progress)
-        # Combined card count and completion percentage in one line
-        st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600; margin-top: 5px;'>Card {current_num} of {total_cards} | Completion: {int(progress * 100)}%</p>", 
+        st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600;'>Card {current_num} of {total_cards}</p>", 
                     unsafe_allow_html=True)
-    
     with col3_footer:
-        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", 
-                    unsafe_allow_html=True)
-        # Jump to card number input with dynamic key to force refresh
-        jump_card = st.number_input(
-            "Jump to Card",
-            min_value=1,
-            max_value=total_cards,
-            value=current_num,
-            step=1,
-            key=f"jump_input_{current_num}",
-            label_visibility="collapsed",
-            help="Enter card number to jump directly"
-        )
-        if jump_card != current_num:
-            st.session_state.current_index = jump_card - 1
-            st.session_state.show_answer = False
-            st.rerun()
+        col_metric, col_slider = st.columns([1, 1])
+        with col_metric:
+            st.metric("Completion", f"{int(progress * 100)}%")
+        with col_slider:
+            st.markdown("<div class='font-size-slider' style='padding-top: 8px;'>", unsafe_allow_html=True)
+            st.session_state.font_size = st.slider(
+                "Font Size",
+                min_value=16,
+                max_value=48,
+                value=st.session_state.font_size,
+                step=2,
+                label_visibility="collapsed"
+            )
+            st.markdown("</div>", unsafe_allow_html=True)
     
-    with col4_footer:
-        # Only Font Size slider - removed completion metric
-        st.markdown("<div class='font-size-slider' style='margin-top: 16px;'>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 11px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
-        st.session_state.font_size = st.slider(
-            "Font Size",
-            min_value=16,
-            max_value=48,
-            value=st.session_state.font_size,
-            step=2,
-            label_visibility="collapsed"
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("""
+        <script>
+            document.addEventListener('keydown', function(e) {
+                const prevButton = document.querySelector('[data-testid="stButton"] button[key="prev"]');
+                const nextButton = document.querySelector('[data-testid="stButton"] button[key="next"]');
+                const flipButton = document.querySelector('[data-testid="stButton"] button[key="flip-btn"]');
+                if (!prevButton || !nextButton || !flipButton) return;
+                if (e.key === 'ArrowLeft' || e.key === 'a') {
+                    e.preventDefault();
+                    if (!prevButton.disabled) prevButton.click();
+                } else if (e.key === 'ArrowRight' || e.key === 'd') {
+                    e.preventDefault();
+                    if (!nextButton.disabled) nextButton.click();
+                } else if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    flipButton.click();
+                }
+            });
+        </script>
+        """, unsafe_allow_html=True)

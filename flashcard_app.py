@@ -255,43 +255,6 @@ def load_flashcards(uploaded_file):
         st.error(f"Error loading {file_extension.upper()} file: {e}")
         return []
 
-# --- Navigation and Control Functions ---
-
-def next_card():
-    if st.session_state.current_index < len(st.session_state.flashcards) - 1:
-        st.session_state.current_index += 1
-        st.session_state.show_answer = False
-
-def previous_card():
-    if st.session_state.current_index > 0:
-        st.session_state.current_index -= 1
-        st.session_state.show_answer = False
-
-def toggle_answer():
-    st.session_state.show_answer = not st.session_state.show_answer
-
-def restart():
-    st.session_state.current_index = 0
-    st.session_state.show_answer = False
-
-def shuffle_cards():
-    if st.session_state.flashcards:
-        random.shuffle(st.session_state.flashcards)
-        st.session_state.current_index = 0
-        st.session_state.show_answer = False
-
-def reset_order():
-    if st.session_state.original_flashcards:
-        st.session_state.flashcards = st.session_state.original_flashcards.copy()
-        st.session_state.current_index = 0
-        st.session_state.show_answer = False
-
-def jump_to_card(card_number):
-    """Jump to a specific card number (1-indexed)"""
-    if 1 <= card_number <= len(st.session_state.flashcards):
-        st.session_state.current_index = card_number - 1
-        st.session_state.show_answer = False
-
 # --- Main App Layout ---
 
 if not st.session_state.file_loaded or not st.session_state.flashcards:
@@ -349,7 +312,11 @@ else:
     with col1:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        st.button("←", on_click=previous_card, disabled=st.session_state.current_index == 0, key="prev")
+        if st.button("←", disabled=st.session_state.current_index == 0, key="prev"):
+            if st.session_state.current_index > 0:
+                st.session_state.current_index -= 1
+                st.session_state.show_answer = False
+                st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
@@ -360,8 +327,11 @@ else:
         # Create unique key for this card to trigger flip animation
         flip_class = "flipped" if st.session_state.show_answer else ""
         
+        # Use a unique key based on card index to force re-render when card changes
+        card_key = f"card_{st.session_state.current_index}"
+        
         st.markdown(f"""
-        <div class="flip-card-container">
+        <div class="flip-card-container" key="{card_key}">
             <div class="flip-card-inner {flip_class}">
                 <div class="flashcard flashcard-front">
                     <div class="card-label">QUESTION</div>
@@ -377,16 +347,18 @@ else:
         col_a, col_b, col_c = st.columns([2, 1, 2])
         with col_b:
             button_text = "🔄 Flip Card" if not st.session_state.show_answer else "👁️ Hide Answer"
-            if st.button(button_text, 
-                         on_click=toggle_answer, 
-                         use_container_width=True,
-                         key="flip-btn"):
-                pass
+            if st.button(button_text, use_container_width=True, key="flip-btn"):
+                st.session_state.show_answer = not st.session_state.show_answer
+                st.rerun()
 
     with col3:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
+        if st.button("→", disabled=st.session_state.current_index == total_cards - 1, key="next"):
+            if st.session_state.current_index < len(st.session_state.flashcards) - 1:
+                st.session_state.current_index += 1
+                st.session_state.show_answer = False
+                st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Footer with progress and controls
@@ -396,14 +368,24 @@ else:
     with col1_footer:
         c1, c2, c3 = st.columns(3)
         with c1:
-            if st.button("🔢 Order", on_click=reset_order, use_container_width=True, help="Reset to original file order"):
-                pass
+            if st.button("🔢 Order", use_container_width=True, help="Reset to original file order", key="order_btn"):
+                if st.session_state.original_flashcards:
+                    st.session_state.flashcards = st.session_state.original_flashcards.copy()
+                    st.session_state.current_index = 0
+                    st.session_state.show_answer = False
+                    st.rerun()
         with c2:
-            if st.button("🔀 Shuffle", on_click=shuffle_cards, use_container_width=True, help="Randomize cards"):
-                pass
+            if st.button("🔀 Shuffle", use_container_width=True, help="Randomize cards", key="shuffle_btn"):
+                if st.session_state.flashcards:
+                    random.shuffle(st.session_state.flashcards)
+                    st.session_state.current_index = 0
+                    st.session_state.show_answer = False
+                    st.rerun()
         with c3:
-            if st.button("⏮️ Reset", on_click=restart, use_container_width=True, help="Go back to first card"):
-                pass
+            if st.button("⏮️ Reset", use_container_width=True, help="Go back to first card", key="reset_btn"):
+                st.session_state.current_index = 0
+                st.session_state.show_answer = False
+                st.rerun()
                 
     with col2_footer:
         progress = current_num / total_cards
@@ -423,7 +405,8 @@ else:
             help="Enter card number to jump directly"
         )
         if jump_card != current_num:
-            jump_to_card(jump_card)
+            st.session_state.current_index = jump_card - 1
+            st.session_state.show_answer = False
             st.rerun()
     
     with col4_footer:
@@ -459,7 +442,8 @@ else:
             col_list_1, col_list_2 = st.columns([0.15, 5])
             with col_list_1:
                 if st.button(f"#{card_num}", key=f"card_btn_{idx}", use_container_width=True):
-                    jump_to_card(card_num)
+                    st.session_state.current_index = idx
+                    st.session_state.show_answer = False
                     st.rerun()
             with col_list_2:
                 card_style = "background: rgba(79, 70, 229, 0.2); border-left: 3px solid #10b981;" if is_current else "background: rgba(255,255,255,0.05); border-left: 3px solid #4f46e5;"

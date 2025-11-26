@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import random
+import time
 
 # --- Configuration and Styling ---
 
@@ -47,6 +48,7 @@ st.markdown("""
         max-width: 700px;
         min-height: 400px;
     }
+    
     .card-flipper {
         position: relative;
         width: 100%;
@@ -55,15 +57,20 @@ st.markdown("""
         transform-style: preserve-3d;
         transition: transform 0.6s ease-in-out;
     }
+    
+    /* State: Flipped (Show Answer) */
     .card-flipper.flipped {
         transform: rotateY(180deg);
     }
+    
     .card-face {
         position: absolute;
         width: 100%;
         height: 100%;
         min-height: 400px;
         max-height: 500px;
+        /* Key fix: Ensure backface visibility is hidden on both faces */
+        -webkit-backface-visibility: hidden; 
         backface-visibility: hidden;
         border-radius: 24px;
         padding: 40px 40px;
@@ -76,16 +83,23 @@ st.markdown("""
         overflow-y: auto;
         overflow-x: hidden;
     }
+    
     .card-front {
         background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
         border: 1px solid #475569;
+        z-index: 2;
+        /* If not flipped, front is at 0deg */
+        transform: rotateY(0deg);
     }
+    
     .card-back {
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         border: 1px solid #059669;
+        /* Back is always rotated 180deg relative to container */
         transform: rotateY(180deg);
+        z-index: 1;
     }
-    
+
     .card-text {
         color: white;
         line-height: 1.6;
@@ -238,7 +252,7 @@ if 'app_title' not in st.session_state:
 if 'font_size' not in st.session_state:
     st.session_state.font_size = 28
 
-# --- Data Loading Function (FIXED) ---
+# --- Data Loading Function ---
 
 def load_flashcards(uploaded_file):
     file_extension = Path(uploaded_file.name).suffix.lower()
@@ -289,32 +303,32 @@ def load_flashcards(uploaded_file):
 
 def next_card():
     if st.session_state.current_index < len(st.session_state.flashcards) - 1:
+        st.session_state.show_answer = False # Reset flip state first
         st.session_state.current_index += 1
-        st.session_state.show_answer = False
 
 def previous_card():
     if st.session_state.current_index > 0:
+        st.session_state.show_answer = False # Reset flip state first
         st.session_state.current_index -= 1
-        st.session_state.show_answer = False
 
 def toggle_answer():
     st.session_state.show_answer = not st.session_state.show_answer
 
 def restart():
-    st.session_state.current_index = 0
     st.session_state.show_answer = False
+    st.session_state.current_index = 0
 
 def shuffle_cards():
     if st.session_state.flashcards:
         random.shuffle(st.session_state.flashcards)
-        st.session_state.current_index = 0
         st.session_state.show_answer = False
+        st.session_state.current_index = 0
 
 def reset_order():
     if st.session_state.original_flashcards:
         st.session_state.flashcards = st.session_state.original_flashcards.copy()
-        st.session_state.current_index = 0
         st.session_state.show_answer = False
+        st.session_state.current_index = 0
 
 # --- Main App Layout ---
 
@@ -377,6 +391,7 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
+        # Flip logic
         flip_class = "flipped" if st.session_state.show_answer else ""
         
         # 3D Flip Card Container

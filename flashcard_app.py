@@ -412,7 +412,7 @@ else:
         st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Footer with progress and controls
+    # Footer with progress and controls - CENTERED PROGRESS BAR
     st.markdown("<br><br>", unsafe_allow_html=True)
     col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2.5, 1, 1])
     
@@ -441,18 +441,17 @@ else:
     with col3_footer:
         st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", 
                     unsafe_allow_html=True)
-        # Jump to card number input - Uses current_num for value, static key to prevent flicker
+        # Jump to card number input with dynamic key to force refresh
         jump_card = st.number_input(
             "Jump to Card",
             min_value=1,
             max_value=total_cards,
             value=current_num,
             step=1,
-            key="jump_input",
+            key=f"jump_input_{current_num}",
             label_visibility="collapsed",
             help="Enter card number to jump directly"
         )
-        # Only process jump if value actually changed
         if jump_card != current_num:
             st.session_state.current_index = jump_card - 1
             st.session_state.show_answer = False

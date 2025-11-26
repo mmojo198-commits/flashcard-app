@@ -196,7 +196,7 @@ if 'app_title' not in st.session_state:
 if 'font_size' not in st.session_state:
     st.session_state.font_size = 28
 
-# --- Data Loading Function (FIXED) ---
+# --- Data Loading Function ---
 
 def load_flashcards(uploaded_file):
     file_extension = Path(uploaded_file.name).suffix.lower()
@@ -205,10 +205,8 @@ def load_flashcards(uploaded_file):
 
     try:
         if file_extension in ['.xlsx', '.xls']:
-            # Added header=None to read the first row as data
             df = pd.read_excel(uploaded_file, header=None)
         elif file_extension == '.csv':
-            # Added header=None to read the first row as data
             df = pd.read_csv(uploaded_file, header=None)
         elif file_extension == '.json':
             uploaded_file.seek(0)
@@ -221,12 +219,10 @@ def load_flashcards(uploaded_file):
                 return []
         
         if df is not None:
-            # Ensure we have at least 2 columns
             if df.shape[1] < 2:
                 st.error("File must have at least two columns: Question and Answer.")
                 return []
             
-            # Since header=None, columns are integers 0 and 1
             questions_col = df.columns[0]
             answers_col = df.columns[1]
             
@@ -234,7 +230,6 @@ def load_flashcards(uploaded_file):
                 question = str(row[questions_col]).strip()
                 answer = str(row[answers_col]).strip()
                 
-                # Basic validation to skip empty rows or 'nan' strings
                 if question and answer and question.lower() != 'nan' and answer.lower() != 'nan':
                     flashcards.append({'question': question, 'answer': answer})
                     
@@ -272,6 +267,12 @@ def reset_order():
     if st.session_state.original_flashcards:
         st.session_state.flashcards = st.session_state.original_flashcards.copy()
         st.session_state.current_index = 0
+        st.session_state.show_answer = False
+
+def jump_to_card(card_number):
+    """Jump to a specific card number (1-indexed)"""
+    if 1 <= card_number <= len(st.session_state.flashcards):
+        st.session_state.current_index = card_number - 1
         st.session_state.show_answer = False
 
 # --- Main App Layout ---
@@ -407,8 +408,7 @@ else:
             help="Enter card number to jump directly"
         )
         if jump_card != current_num:
-            st.session_state.current_index = jump_card - 1
-            st.session_state.show_answer = False
+            jump_to_card(jump_card)
             st.rerun()
     
     with col4_footer:

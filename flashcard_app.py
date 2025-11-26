@@ -460,7 +460,7 @@ else:
     with col4_footer:
         # Only Font Size slider
         st.markdown("<div class='font-size-slider' style='margin-top: 16px;'>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 11px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
         st.session_state.font_size = st.slider(
             "Font Size",
             min_value=16,
@@ -470,3 +470,4 @@ else:
             label_visibility="collapsed"
         )
         st.markdown("</div>", unsafe_allow_html=True)
+

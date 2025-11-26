@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import random
+from copy import deepcopy
 
 # --- Configuration and Styling ---
 
@@ -14,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for minimal top space
+# Custom CSS for minimal top space (same as your original CSS)
 st.markdown("""
 <style>
     .block-container {
@@ -202,7 +203,7 @@ st.markdown("""
 
 if 'flashcards' not in st.session_state:
     st.session_state.flashcards = []
-if 'original_flashcards' not in st.session_state: 
+if 'original_flashcards' not in st.session_state:
     st.session_state.original_flashcards = []
 if 'current_index' not in st.session_state:
     st.session_state.current_index = 0
@@ -212,6 +213,8 @@ if 'file_loaded' not in st.session_state:
     st.session_state.file_loaded = False
 if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
+if 'font_size' not in st.session_state:
+    st.session_state.font_size = 28
 
 # --- Data Loading Function ---
 
@@ -255,6 +258,61 @@ def load_flashcards(uploaded_file):
         st.error(f"Error loading {file_extension.upper()} file: {e}")
         return []
 
+# --- Navigation and Control Functions ---
+# NOTE: Removed explicit st.rerun() calls from callbacks. Streamlit will re-run after callbacks.
+
+def next_card():
+    if st.session_state.current_index < len(st.session_state.flashcards) - 1:
+        st.session_state.current_index += 1
+        st.session_state.show_answer = False
+
+def previous_card():
+    if st.session_state.current_index > 0:
+        st.session_state.current_index -= 1
+        st.session_state.show_answer = False
+
+def toggle_answer():
+    st.session_state.show_answer = not st.session_state.show_answer
+
+def restart():
+    st.session_state.current_index = 0
+    st.session_state.show_answer = False
+
+def shuffle_cards():
+    if st.session_state.flashcards:
+        random.shuffle(st.session_state.flashcards)
+        st.session_state.current_index = 0
+        st.session_state.show_answer = False
+
+def reset_order():
+    if st.session_state.original_flashcards:
+        # Use deepcopy to avoid accidental shared references
+        st.session_state.flashcards = deepcopy(st.session_state.original_flashcards)
+        st.session_state.current_index = 0
+        st.session_state.show_answer = False
+
+def jump_to_card_number():
+    """on_change handler for the number_input widget named 'jump_input'"""
+    val = st.session_state.get("jump_input", None)
+    if val is None:
+        return
+    # Ensure the value is within bounds
+    try:
+        val = int(val)
+    except Exception:
+        return
+    if 1 <= val <= len(st.session_state.flashcards):
+        st.session_state.current_index = val - 1
+        st.session_state.show_answer = False
+
+def reset_ui_and_reload():
+    """Used by 'Upload New' to reset the app to initial upload state"""
+    st.session_state.file_loaded = False
+    st.session_state.flashcards = []
+    st.session_state.original_flashcards = []
+    st.session_state.current_index = 0
+    st.session_state.show_answer = False
+
 # --- Main App Layout ---
 
 if not st.session_state.file_loaded or not st.session_state.flashcards:
@@ -278,13 +336,14 @@ if not st.session_state.file_loaded or not st.session_state.flashcards:
             with st.spinner(f'Loading flashcards for {st.session_state.app_title}...'):
                 flashcards = load_flashcards(uploaded_file)
                 if flashcards:
+                    # store a deep copy as original order
                     st.session_state.flashcards = flashcards
-                    st.session_state.original_flashcards = flashcards.copy() 
+                    st.session_state.original_flashcards = deepcopy(flashcards)
                     st.session_state.file_loaded = True
                     st.session_state.current_index = 0
                     st.session_state.show_answer = False
                     st.success(f"✅ Loaded {len(flashcards)} flashcards for: {st.session_state.app_title}!")
-                    st.rerun()
+                    # no explicit rerun here; execution continues and will render the loaded view
                 else:
                     st.error("❌ No valid flashcards found in the file! Please check the file structure.")
 
@@ -299,11 +358,8 @@ else:
         st.markdown(f"<h1>🧠 {st.session_state.app_title}</h1>", unsafe_allow_html=True)
     with col2:
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        if st.button("📤 Upload New", use_container_width=True, key="new_upload"):
-            st.session_state.file_loaded = False
-            st.session_state.flashcards = []
-            st.session_state.original_flashcards = []
-            st.rerun()
+        # use on_click for the Upload New behavior
+        st.button("📤 Upload New", use_container_width=True, key="new_upload", on_click=reset_ui_and_reload)
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Main card area with navigation
@@ -312,24 +368,15 @@ else:
     with col1:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        if st.button("←", disabled=st.session_state.current_index == 0, key="prev"):
-            if st.session_state.current_index > 0:
-                st.session_state.current_index -= 1
-                st.session_state.show_answer = False
-                st.rerun()
+        # 'prev' button uses on_click callback that mutates session_state (no explicit st.rerun)
+        st.button("←", on_click=previous_card, disabled=st.session_state.current_index == 0, key="prev")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        # Get font size from session state or set default
-        if 'font_size' not in st.session_state:
-            st.session_state.font_size = 28
-        
-        # Create unique key for this card to trigger flip animation
+        # Create unique key for this card to force re-render when card changes (visual only)
         flip_class = "flipped" if st.session_state.show_answer else ""
-        
-        # Use a unique key based on card index to force re-render when card changes
         card_key = f"card_{st.session_state.current_index}"
-        
+
         st.markdown(f"""
         <div class="flip-card-container" key="{card_key}">
             <div class="flip-card-inner {flip_class}">
@@ -344,71 +391,54 @@ else:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
         col_a, col_b, col_c = st.columns([2, 1, 2])
         with col_b:
             button_text = "🔄 Flip Card" if not st.session_state.show_answer else "👁️ Hide Answer"
-            if st.button(button_text, use_container_width=True, key="flip-btn"):
-                st.session_state.show_answer = not st.session_state.show_answer
-                st.rerun()
+            st.button(button_text,
+                     on_click=toggle_answer,
+                     use_container_width=True,
+                     key="flip-btn")
 
     with col3:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        if st.button("→", disabled=st.session_state.current_index == total_cards - 1, key="next"):
-            if st.session_state.current_index < len(st.session_state.flashcards) - 1:
-                st.session_state.current_index += 1
-                st.session_state.show_answer = False
-                st.rerun()
+        st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Footer with progress and controls
     st.markdown("<br><br>", unsafe_allow_html=True)
     col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.2, 1.5, 0.8, 1])
-    
+
     with col1_footer:
         c1, c2, c3 = st.columns(3)
         with c1:
-            if st.button("🔢 Order", use_container_width=True, help="Reset to original file order", key="order_btn"):
-                if st.session_state.original_flashcards:
-                    st.session_state.flashcards = st.session_state.original_flashcards.copy()
-                    st.session_state.current_index = 0
-                    st.session_state.show_answer = False
-                    st.rerun()
+            st.button("🔢 Order", on_click=reset_order, use_container_width=True, help="Reset to original file order")
         with c2:
-            if st.button("🔀 Shuffle", use_container_width=True, help="Randomize cards", key="shuffle_btn"):
-                if st.session_state.flashcards:
-                    random.shuffle(st.session_state.flashcards)
-                    st.session_state.current_index = 0
-                    st.session_state.show_answer = False
-                    st.rerun()
+            st.button("🔀 Shuffle", on_click=shuffle_cards, use_container_width=True, help="Randomize cards")
         with c3:
-            if st.button("⏮️ Reset", use_container_width=True, help="Go back to first card", key="reset_btn"):
-                st.session_state.current_index = 0
-                st.session_state.show_answer = False
-                st.rerun()
-                
+            st.button("⏮️ Reset", on_click=restart, use_container_width=True, help="Go back to first card")
+
     with col2_footer:
         progress = current_num / total_cards
         st.progress(progress)
         st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600;'>Card {current_num} of {total_cards}</p>", 
                     unsafe_allow_html=True)
-    
+
     with col3_footer:
-        # Jump to card number input
-        jump_card = st.number_input(
+        # Jump to card number input - use on_change handler bound to st.session_state key 'jump_input'
+        # The on_change callback will update st.session_state.current_index.
+        st.number_input(
             "Jump to Card",
             min_value=1,
             max_value=total_cards,
             value=current_num,
             step=1,
             key="jump_input",
-            help="Enter card number to jump directly"
+            help="Enter card number to jump directly",
+            on_change=jump_to_card_number
         )
-        if jump_card != current_num:
-            st.session_state.current_index = jump_card - 1
-            st.session_state.show_answer = False
-            st.rerun()
-    
+
     with col4_footer:
         col_metric, col_slider = st.columns([1, 1])
         with col_metric:
@@ -424,27 +454,32 @@ else:
                 label_visibility="collapsed"
             )
             st.markdown("</div>", unsafe_allow_html=True)
-    
+
     # Card List Expander
     st.markdown("<br>", unsafe_allow_html=True)
     with st.expander("📋 View All Cards", expanded=False):
         st.markdown("<p style='color: #94a3b8; margin-bottom: 16px;'>Click any card to jump directly to it</p>", unsafe_allow_html=True)
-        
+
         # Display cards in a scrollable list
         for idx, card in enumerate(st.session_state.flashcards):
             card_num = idx + 1
             # Truncate question for display
             question_preview = card['question'][:80] + "..." if len(card['question']) > 80 else card['question']
-            
+
             # Highlight current card
             is_current = idx == st.session_state.current_index
-            
+
             col_list_1, col_list_2 = st.columns([0.15, 5])
             with col_list_1:
-                if st.button(f"#{card_num}", key=f"card_btn_{idx}", use_container_width=True):
-                    st.session_state.current_index = idx
-                    st.session_state.show_answer = False
-                    st.rerun()
+                # Use on_click to call a small lambda that sets the index
+                # Note: Provide a unique key for each button to avoid collisions
+                def make_jump(n):
+                    def _jump():
+                        st.session_state.current_index = n - 1
+                        st.session_state.show_answer = False
+                    return _jump
+
+                st.button(f"#{card_num}", key=f"card_btn_{idx}", on_click=make_jump(card_num), use_container_width=True)
             with col_list_2:
                 card_style = "background: rgba(79, 70, 229, 0.2); border-left: 3px solid #10b981;" if is_current else "background: rgba(255,255,255,0.05); border-left: 3px solid #4f46e5;"
                 st.markdown(f"""
@@ -453,24 +488,8 @@ else:
                         {' <span style="color: #10b981; font-weight: 600;">← Current</span>' if is_current else ''}
                     </div>
                 """, unsafe_allow_html=True)
-    
-    st.markdown("""
-        <script>
-            document.addEventListener('keydown', function(e) {
-                const prevButton = document.querySelector('[data-testid="stButton"] button[key="prev"]');
-                const nextButton = document.querySelector('[data-testid="stButton"] button[key="next"]');
-                const flipButton = document.querySelector('[data-testid="stButton"] button[key="flip-btn"]');
-                if (!prevButton || !nextButton || !flipButton) return;
-                if (e.key === 'ArrowLeft' || e.key === 'a') {
-                    e.preventDefault();
-                    if (!prevButton.disabled) prevButton.click();
-                } else if (e.key === 'ArrowRight' || e.key === 'd') {
-                    e.preventDefault();
-                    if (!nextButton.disabled) nextButton.click();
-                } else if (e.key === ' ' || e.key === 'Enter') {
-                    e.preventDefault();
-                    flipButton.click();
-                }
-            });
-        </script>
-        """, unsafe_allow_html=True)
+
+    # Removed the custom keyboard JS that relied on internal DOM structure.
+    # If you want keyboard navigation, it's better to use streamlit's built-in key bindings or a small, well-scoped script
+    # that selects buttons in a robust way. The previous script attempted to query by "key" attribute which is not present
+    # on the rendered <button> element in Streamlit, and that caused flaky behavior in some deployments.

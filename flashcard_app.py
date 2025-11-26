@@ -14,7 +14,26 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS
+# --- Session State Initialization ---
+if 'flashcards' not in st.session_state:
+    st.session_state.flashcards = []
+if 'original_flashcards' not in st.session_state: 
+    st.session_state.original_flashcards = []
+if 'current_index' not in st.session_state:
+    st.session_state.current_index = 0
+if 'show_answer' not in st.session_state:
+    st.session_state.show_answer = False
+if 'file_loaded' not in st.session_state:
+    st.session_state.file_loaded = False
+if 'app_title' not in st.session_state:
+    st.session_state.app_title = "Flashcard Review"
+if 'font_size' not in st.session_state:
+    st.session_state.font_size = 28
+# Track animation direction ('next' or 'prev')
+if 'anim_direction' not in st.session_state:
+    st.session_state.anim_direction = 'next'
+
+# --- Custom CSS ---
 st.markdown("""
 <style>
     .block-container {
@@ -40,6 +59,28 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
+    /* --- ANIMATIONS START --- */
+    
+    @keyframes slideInRight {
+        from { transform: translateX(50px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes slideInLeft {
+        from { transform: translateX(-50px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .animate-next {
+        animation: slideInRight 0.3s ease-out forwards;
+    }
+    
+    .animate-prev {
+        animation: slideInLeft 0.3s ease-out forwards;
+    }
+    
+    /* --- ANIMATIONS END --- */
+
     /* 3D Flip Animation Styles */
     .card-container {
         perspective: 1000px;
@@ -47,6 +88,7 @@ st.markdown("""
         max-width: 700px;
         min-height: 400px;
     }
+    
     .card-flipper {
         position: relative;
         width: 100%;
@@ -55,6 +97,7 @@ st.markdown("""
         transform-style: preserve-3d;
         transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
     }
+    
     .card-flipper.flipped {
         transform: rotateY(180deg);
     }
@@ -65,7 +108,7 @@ st.markdown("""
         height: 100%;
         min-height: 400px;
         max-height: 500px;
-        -webkit-backface-visibility: hidden; /* Safari */
+        -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
         border-radius: 24px;
         padding: 40px 40px;
@@ -93,19 +136,15 @@ st.markdown("""
         z-index: 1;
     }
 
-    /* --- SPOILER FIX START --- */
-    /* By default (when not flipped), hide the content on the back face instantly */
+    /* --- SPOILER FIX: Hide answer text immediately when not flipped --- */
     .card-back .card-text, .card-back .card-label {
         opacity: 0;
         transition: opacity 0s; 
     }
-
-    /* When flipped, fade the content in */
     .flipped .card-back .card-text, .flipped .card-back .card-label {
         opacity: 1;
-        transition: opacity 0.2s ease-in 0.2s; /* Delay allows the flip to start before showing text */
+        transition: opacity 0.2s ease-in 0.2s; 
     }
-    /* --- SPOILER FIX END --- */
     
     .card-text {
         color: white;
@@ -133,17 +172,24 @@ st.markdown("""
     .card-face::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
     .card-face::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
     
-    /* Buttons */
+    /* UI Elements & Buttons */
     .stButton > button {
         background: #4f46e5;
         color: white;
         border: none;
         border-radius: 12px;
-        padding: 12px 24px;
-        font-size: 16px;
+        padding: 10px 20px;  /* Reduced padding for better fit */
+        font-size: 15px;     /* Balanced font size */
         font-weight: 500;
         transition: all 0.3s ease;
         cursor: pointer;
+        
+        /* Fix for odd alignment/wrapping */
+        white-space: nowrap;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
     .stButton > button:hover {
         background: #6366f1;
@@ -154,6 +200,8 @@ st.markdown("""
         opacity: 0.5;
         cursor: not-allowed;
     }
+    
+    /* Navigation Arrow Buttons */
     .nav-button > button {
         background: #334155 !important;
         color: white !important;
@@ -164,20 +212,18 @@ st.markdown("""
         min-width: 56px !important;
         padding: 0 !important;
         font-size: 24px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
     }
     .nav-button > button:hover { background: #475569 !important; }
-    .nav-button:hover > button { background: #475569 !important; }
     
-    /* Inputs */
+    /* File Uploader */
     .stFileUploader {
         background: rgba(255,255,255,0.05);
         border-radius: 12px;
         padding: 20px;
         border: 2px dashed #475569;
     }
+    
+    /* Layout Adjustments */
     [data-testid="stMetricValue"] { color: #a5b4fc !important; font-size: 24px !important; }
     [data-testid="stMetricLabel"] { color: #cbd5e1 !important; }
     div[data-testid="column"] { gap: 0 !important; }
@@ -200,23 +246,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-# --- Session State Initialization ---
-
-if 'flashcards' not in st.session_state:
-    st.session_state.flashcards = []
-if 'original_flashcards' not in st.session_state: 
-    st.session_state.original_flashcards = []
-if 'current_index' not in st.session_state:
-    st.session_state.current_index = 0
-if 'show_answer' not in st.session_state:
-    st.session_state.show_answer = False
-if 'file_loaded' not in st.session_state:
-    st.session_state.file_loaded = False
-if 'app_title' not in st.session_state:
-    st.session_state.app_title = "Flashcard Review"
-if 'font_size' not in st.session_state:
-    st.session_state.font_size = 28
 
 # --- Data Loading Function ---
 
@@ -264,12 +293,14 @@ def load_flashcards(uploaded_file):
 
 def next_card():
     if st.session_state.current_index < len(st.session_state.flashcards) - 1:
-        st.session_state.show_answer = False # Reset logic state
+        st.session_state.show_answer = False
+        st.session_state.anim_direction = 'next'
         st.session_state.current_index += 1
 
 def previous_card():
     if st.session_state.current_index > 0:
-        st.session_state.show_answer = False # Reset logic state
+        st.session_state.show_answer = False
+        st.session_state.anim_direction = 'prev'
         st.session_state.current_index -= 1
 
 def toggle_answer():
@@ -278,18 +309,21 @@ def toggle_answer():
 def restart():
     st.session_state.show_answer = False
     st.session_state.current_index = 0
+    st.session_state.anim_direction = 'next'
 
 def shuffle_cards():
     if st.session_state.flashcards:
         random.shuffle(st.session_state.flashcards)
         st.session_state.show_answer = False
         st.session_state.current_index = 0
+        st.session_state.anim_direction = 'next'
 
 def reset_order():
     if st.session_state.original_flashcards:
         st.session_state.flashcards = st.session_state.original_flashcards.copy()
         st.session_state.show_answer = False
         st.session_state.current_index = 0
+        st.session_state.anim_direction = 'next'
 
 # --- Main App Layout ---
 
@@ -341,9 +375,13 @@ else:
 
     with col2:
         flip_class = "flipped" if st.session_state.show_answer else ""
+        anim_class = "animate-next" if st.session_state.anim_direction == 'next' else "animate-prev"
         
+        # Unique ID to trigger animation on re-render
+        card_container_id = f"card-container-{st.session_state.current_index}"
+
         st.markdown(f"""
-        <div class="card-container">
+        <div id="{card_container_id}" class="card-container {anim_class}">
             <div class="card-flipper {flip_class}">
                 <div class="card-face card-front">
                     <div class="card-label">QUESTION</div>
@@ -369,7 +407,9 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<br><br>", unsafe_allow_html=True)
-    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2.5, 1, 1])
+    
+    # Modified column ratios to give buttons more space
+    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([2, 2, 1, 1])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
@@ -391,6 +431,7 @@ else:
         st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", unsafe_allow_html=True)
         jump_card = st.number_input("Jump to Card", min_value=1, max_value=total_cards, value=current_num, step=1, key=f"jump_input_{current_num}", label_visibility="collapsed")
         if jump_card != current_num:
+            st.session_state.anim_direction = 'next' if jump_card > current_num else 'prev'
             st.session_state.current_index = jump_card - 1
             st.session_state.show_answer = False
             st.rerun()

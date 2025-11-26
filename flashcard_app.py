@@ -139,6 +139,34 @@ st.markdown("""
         margin: 0 !important;
         padding: 0 !important;
     }
+    
+    /* Card list styling */
+    .card-list-item {
+        background: rgba(255,255,255,0.05);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin: 8px 0;
+        border-left: 3px solid #4f46e5;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .card-list-item:hover {
+        background: rgba(255,255,255,0.1);
+        border-left-color: #6366f1;
+        transform: translateX(4px);
+    }
+    .card-list-number {
+        color: #a5b4fc;
+        font-weight: 600;
+        margin-right: 12px;
+    }
+    .card-list-text {
+        color: #e2e8f0;
+    }
+    .current-card-item {
+        background: rgba(79, 70, 229, 0.2);
+        border-left-color: #10b981;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -157,7 +185,7 @@ if 'file_loaded' not in st.session_state:
 if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
 
-# --- Data Loading Function (FIXED) ---
+# --- Data Loading Function ---
 
 def load_flashcards(uploaded_file):
     file_extension = Path(uploaded_file.name).suffix.lower()
@@ -166,10 +194,8 @@ def load_flashcards(uploaded_file):
 
     try:
         if file_extension in ['.xlsx', '.xls']:
-            # Added header=None to read the first row as data
             df = pd.read_excel(uploaded_file, header=None)
         elif file_extension == '.csv':
-            # Added header=None to read the first row as data
             df = pd.read_csv(uploaded_file, header=None)
         elif file_extension == '.json':
             uploaded_file.seek(0)
@@ -182,12 +208,10 @@ def load_flashcards(uploaded_file):
                 return []
         
         if df is not None:
-            # Ensure we have at least 2 columns
             if df.shape[1] < 2:
                 st.error("File must have at least two columns: Question and Answer.")
                 return []
             
-            # Since header=None, columns are integers 0 and 1
             questions_col = df.columns[0]
             answers_col = df.columns[1]
             
@@ -195,7 +219,6 @@ def load_flashcards(uploaded_file):
                 question = str(row[questions_col]).strip()
                 answer = str(row[answers_col]).strip()
                 
-                # Basic validation to skip empty rows or 'nan' strings
                 if question and answer and question.lower() != 'nan' and answer.lower() != 'nan':
                     flashcards.append({'question': question, 'answer': answer})
                     
@@ -233,6 +256,12 @@ def reset_order():
     if st.session_state.original_flashcards:
         st.session_state.flashcards = st.session_state.original_flashcards.copy()
         st.session_state.current_index = 0
+        st.session_state.show_answer = False
+
+def jump_to_card(card_number):
+    """Jump to a specific card number (1-indexed)"""
+    if 1 <= card_number <= len(st.session_state.flashcards):
+        st.session_state.current_index = card_number - 1
         st.session_state.show_answer = False
 
 # --- Main App Layout ---
@@ -327,7 +356,7 @@ else:
 
     # Footer with progress and controls
     st.markdown("<br><br>", unsafe_allow_html=True)
-    col1_footer, col2_footer, col3_footer = st.columns([1.2, 1.8, 1])
+    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.2, 1.5, 0.8, 1])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
@@ -346,7 +375,23 @@ else:
         st.progress(progress)
         st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600;'>Card {current_num} of {total_cards}</p>", 
                     unsafe_allow_html=True)
+    
     with col3_footer:
+        # Jump to card number input
+        jump_card = st.number_input(
+            "Jump to Card",
+            min_value=1,
+            max_value=total_cards,
+            value=current_num,
+            step=1,
+            key="jump_input",
+            help="Enter card number to jump directly"
+        )
+        if jump_card != current_num:
+            jump_to_card(jump_card)
+            st.rerun()
+    
+    with col4_footer:
         col_metric, col_slider = st.columns([1, 1])
         with col_metric:
             st.metric("Completion", f"{int(progress * 100)}%")
@@ -361,6 +406,34 @@ else:
                 label_visibility="collapsed"
             )
             st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Card List Expander
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.expander("📋 View All Cards", expanded=False):
+        st.markdown("<p style='color: #94a3b8; margin-bottom: 16px;'>Click any card to jump directly to it</p>", unsafe_allow_html=True)
+        
+        # Display cards in a scrollable list
+        for idx, card in enumerate(st.session_state.flashcards):
+            card_num = idx + 1
+            # Truncate question for display
+            question_preview = card['question'][:80] + "..." if len(card['question']) > 80 else card['question']
+            
+            # Highlight current card
+            is_current = idx == st.session_state.current_index
+            
+            col_list_1, col_list_2 = st.columns([0.15, 5])
+            with col_list_1:
+                if st.button(f"#{card_num}", key=f"card_btn_{idx}", use_container_width=True):
+                    jump_to_card(card_num)
+                    st.rerun()
+            with col_list_2:
+                card_style = "background: rgba(79, 70, 229, 0.2); border-left: 3px solid #10b981;" if is_current else "background: rgba(255,255,255,0.05); border-left: 3px solid #4f46e5;"
+                st.markdown(f"""
+                    <div style="{card_style} border-radius: 8px; padding: 12px 16px; margin: 4px 0;">
+                        <span style="color: #e2e8f0;">{question_preview}</span>
+                        {' <span style="color: #10b981; font-weight: 600;">← Current</span>' if is_current else ''}
+                    </div>
+                """, unsafe_allow_html=True)
     
     st.markdown("""
         <script>

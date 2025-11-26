@@ -187,7 +187,7 @@ st.markdown("""
     .stSlider {
         margin: 0 !important;
         padding: 0 !important;
-        max-width: 200px !important;
+        max-width: 220px !important;
     }
     
     /* Jump to card input styling - CENTER ALIGNED */
@@ -402,9 +402,9 @@ else:
         st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Footer with progress and controls
+    # Footer with progress and controls - UPDATED LAYOUT
     st.markdown("<br><br>", unsafe_allow_html=True)
-    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2, 1, 1.5])
+    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2.5, 1, 1])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
@@ -421,7 +421,8 @@ else:
     with col2_footer:
         progress = current_num / total_cards
         st.progress(progress)
-        st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600; margin-top: 5px;'>Card {current_num} of {total_cards}</p>", 
+        # Combined card count and completion percentage in one line
+        st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600; margin-top: 5px;'>Card {current_num} of {total_cards} | Completion: {int(progress * 100)}%</p>", 
                     unsafe_allow_html=True)
     
     with col3_footer:
@@ -444,23 +445,15 @@ else:
             st.rerun()
     
     with col4_footer:
-        # Use sub-columns to keep metric and font size side by side
-        col_metric, col_font = st.columns([1, 1])
-        
-        with col_metric:
-            st.markdown("<div style='margin-top: 8px;'>", unsafe_allow_html=True)
-            st.metric("Completion", f"{int(progress * 100)}%")
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        with col_font:
-            st.markdown("<div class='font-size-slider' style='margin-top: 16px;'>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 11px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
-            st.session_state.font_size = st.slider(
-                "Font Size",
-                min_value=16,
-                max_value=48,
-                value=st.session_state.font_size,
-                step=2,
-                label_visibility="collapsed"
-            )
-            st.markdown("</div>", unsafe_allow_html=True)
+        # Only Font Size slider - removed completion metric
+        st.markdown("<div class='font-size-slider' style='margin-top: 16px;'>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 11px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
+        st.session_state.font_size = st.slider(
+            "Font Size",
+            min_value=16,
+            max_value=48,
+            value=st.session_state.font_size,
+            step=2,
+            label_visibility="collapsed"
+        )
+        st.markdown("</div>", unsafe_allow_html=True)

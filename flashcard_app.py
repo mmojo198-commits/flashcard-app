@@ -39,12 +39,31 @@ st.markdown("""
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
+    
+    /* 3D Flip Card Container */
+    .flip-card-container {
+        perspective: 1000px;
+        margin: 40px auto;
+        max-width: 700px;
+        min-height: 400px;
+    }
+    
+    .flip-card-inner {
+        position: relative;
+        width: 100%;
+        min-height: 400px;
+        transition: transform 0.6s ease-in-out;
+        transform-style: preserve-3d;
+    }
+    
+    .flip-card-inner.flipped {
+        transform: rotateY(180deg);
+    }
+    
     .flashcard {
         background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
         border-radius: 24px;
         padding: 60px 40px;
-        margin: 40px auto;
-        max-width: 700px;
         min-height: 400px;
         box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         border: 1px solid #475569;
@@ -53,11 +72,20 @@ st.markdown("""
         justify-content: center;
         align-items: center;
         text-align: center;
-        transition: all 0.3s ease;
+        position: absolute;
+        width: 100%;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
     }
-    .flashcard-answer {
+    
+    .flashcard-front {
+        transform: rotateY(0deg);
+    }
+    
+    .flashcard-back {
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         border: 1px solid #059669;
+        transform: rotateY(180deg);
     }
     .card-text {
         color: white;
@@ -325,18 +353,25 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        card_class = "flashcard-answer" if st.session_state.show_answer else "flashcard"
-        label = "ANSWER" if st.session_state.show_answer else "QUESTION"
-        text = current_card['answer'] if st.session_state.show_answer else current_card['question']
-        
         # Get font size from session state or set default
         if 'font_size' not in st.session_state:
             st.session_state.font_size = 28
         
+        # Create unique key for this card to trigger flip animation
+        flip_class = "flipped" if st.session_state.show_answer else ""
+        
         st.markdown(f"""
-        <div class="flashcard {card_class}">
-            <div class="card-label">{label}</div>
-            <p class="card-text" style="font-size: {st.session_state.font_size}px;">{text}</p>
+        <div class="flip-card-container">
+            <div class="flip-card-inner {flip_class}">
+                <div class="flashcard flashcard-front">
+                    <div class="card-label">QUESTION</div>
+                    <p class="card-text" style="font-size: {st.session_state.font_size}px;">{current_card['question']}</p>
+                </div>
+                <div class="flashcard flashcard-back">
+                    <div class="card-label">ANSWER</div>
+                    <p class="card-text" style="font-size: {st.session_state.font_size}px;">{current_card['answer']}</p>
+                </div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
         col_a, col_b, col_c = st.columns([2, 1, 2])

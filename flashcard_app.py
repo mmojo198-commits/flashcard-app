@@ -70,7 +70,7 @@ st.markdown("""
     }
     /* --- END ANIMATION --- */
 
-    /* 3D Flip Card Styles (Updated for Animation) */
+    /* 3D Flip Card Styles */
     .card-container {
         perspective: 1000px;
         margin: 40px auto;
@@ -100,18 +100,17 @@ st.markdown("""
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
         border-radius: 24px;
-        padding: 60px 40px; /* Match original padding */
+        padding: 60px 40px;
         box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         display: flex;
         flex-direction: column;
-        justify-content: center; /* Match original alignment */
+        justify-content: center;
         align-items: center;
         text-align: center;
         overflow-y: auto;
         overflow-x: hidden;
     }
     
-    /* Original Colors Preserved */
     .card-front {
         background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
         border: 1px solid #475569;
@@ -144,7 +143,6 @@ st.markdown("""
         word-wrap: break-word;
         overflow-wrap: break-word;
         max-width: 100%;
-        /* Removed padding: 20px 0 to match original style */
     }
     .card-label {
         color: #e2e8f0;
@@ -162,52 +160,56 @@ st.markdown("""
     .card-face::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
     .card-face::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
     
-    /* UI Elements & Buttons (Updated for Alignment Fix) */
-    .stButton > button {
-        background: #4f46e5;
-        color: white;
-        border: none;
-        border-radius: 12px;
-        padding: 12px 24px;
-        font-size: 16px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        
-        /* Fix for odd alignment/wrapping */
-        white-space: nowrap;
-        min-width: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .stButton > button:hover {
-        background: #6366f1;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .stButton > button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
+    /* --- BUTTON STYLING (UPDATED TO MATCH IMAGE) --- */
     
-    /* Navigation Arrow Buttons */
-    .nav-button > button {
-        background: #334155 !important;
+    /* 1. Default Secondary Buttons (Order, Shuffle, Reset) - Dark & Outlined */
+    .stButton > button {
+        background-color: rgba(30, 41, 59, 0.8) !important; /* Dark background like image */
         color: white !important;
-        border: none !important;
-        border-radius: 50% !important;
-        width: 56px !important;
-        height: 56px !important;
-        min-width: 56px !important;
-        padding: 0 !important;
-        font-size: 24px !important;
-        display: flex !important;
+        border: 1px solid #475569 !important; /* Thin border */
+        border-radius: 8px !important; /* Slightly more squared corners */
+        padding: 10px 20px !important;
+        font-size: 15px !important;
+        font-weight: 500 !important;
+        transition: all 0.3s ease !important;
+        cursor: pointer !important;
+        white-space: nowrap !important;
+        min-width: 0 !important;
+        display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
     }
-    .nav-button > button:hover { background: #475569 !important; }
-    .nav-button:hover > button { background: #475569 !important; }
+    
+    .stButton > button:hover {
+        background-color: #334155 !important; /* Slightly lighter on hover */
+        border-color: #64748b !important;
+        transform: translateY(-2px);
+    }
+    
+    /* 2. Primary Action Button (Flip Card) - Keep Bright Indigo */
+    /* We target the specific button using specific attribute selector if possible, 
+       or rely on the fact we will set type="primary" in Python */
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background: #4f46e5 !important; /* Bright Indigo */
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4) !important;
+    }
+    
+    div[data-testid="stButton"] > button[kind="primary"]:hover {
+        background: #6366f1 !important;
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6) !important;
+    }
+    
+    /* Navigation Arrow Buttons (Keep round) */
+    .nav-button > button {
+        border-radius: 50% !important;
+        width: 56px !important;
+        height: 56px !important;
+        padding: 0 !important;
+        font-size: 24px !important;
+        background: #334155 !important;
+        border: none !important;
+    }
     
     /* File Uploader */
     .stFileUploader {
@@ -342,12 +344,12 @@ else:
     total_cards = len(st.session_state.flashcards)
     current_num = st.session_state.current_index + 1
 
-    # Header with dynamic title
     col1, col2 = st.columns([4, 1])
     with col1:
         st.markdown(f"<h1>🧠 {st.session_state.app_title}</h1>", unsafe_allow_html=True)
     with col2:
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
+        # This button remains dark/secondary by default
         if st.button("📤 Upload New", use_container_width=True, key="new_upload"):
             st.session_state.file_loaded = False
             st.session_state.flashcards = []
@@ -355,7 +357,6 @@ else:
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Main card area
     col1, col2, col3 = st.columns([1, 6, 1])
 
     with col1:
@@ -367,7 +368,6 @@ else:
     with col2:
         flip_class = "flipped" if st.session_state.show_answer else ""
         
-        # Unique ID to trigger flip animation on every index change
         card_container_id = f"card-container-{st.session_state.current_index}"
 
         st.markdown(f"""
@@ -387,7 +387,8 @@ else:
         
         col_a, col_b, col_c = st.columns([2, 1, 2])
         with col_b:
-            if st.button("🔄 Flip Card", on_click=toggle_answer, use_container_width=True, key="flip-btn"):
+            # IMPORTANT: Set type="primary" here to activate the Indigo style
+            if st.button("🔄 Flip Card", type="primary", on_click=toggle_answer, use_container_width=True, key="flip-btn"):
                 pass
 
     with col3:
@@ -396,12 +397,13 @@ else:
         st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Footer
     st.markdown("<br><br>", unsafe_allow_html=True)
+    
     col1_footer, col2_footer, col3_footer, col4_footer = st.columns([2, 2, 1, 1])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
+        # These buttons will now use the Default (dark) style defined in CSS
         with c1:
             if st.button("🔢 Order", on_click=reset_order, use_container_width=True): pass
         with c2:

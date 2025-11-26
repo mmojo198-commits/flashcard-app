@@ -166,7 +166,7 @@ st.markdown("""
     
     /* Jump to card input styling */
     .stNumberInput {
-        max-width: 120px !important;
+        max-width: 150px !important;
     }
     .stNumberInput > div > div > input {
         text-align: center !important;
@@ -196,7 +196,7 @@ if 'app_title' not in st.session_state:
 if 'font_size' not in st.session_state:
     st.session_state.font_size = 28
 
-# --- Data Loading Function ---
+# --- Data Loading Function (FIXED) ---
 
 def load_flashcards(uploaded_file):
     file_extension = Path(uploaded_file.name).suffix.lower()
@@ -205,8 +205,10 @@ def load_flashcards(uploaded_file):
 
     try:
         if file_extension in ['.xlsx', '.xls']:
+            # Added header=None to read the first row as data
             df = pd.read_excel(uploaded_file, header=None)
         elif file_extension == '.csv':
+            # Added header=None to read the first row as data
             df = pd.read_csv(uploaded_file, header=None)
         elif file_extension == '.json':
             uploaded_file.seek(0)
@@ -219,10 +221,12 @@ def load_flashcards(uploaded_file):
                 return []
         
         if df is not None:
+            # Ensure we have at least 2 columns
             if df.shape[1] < 2:
                 st.error("File must have at least two columns: Question and Answer.")
                 return []
             
+            # Since header=None, columns are integers 0 and 1
             questions_col = df.columns[0]
             answers_col = df.columns[1]
             
@@ -230,6 +234,7 @@ def load_flashcards(uploaded_file):
                 question = str(row[questions_col]).strip()
                 answer = str(row[answers_col]).strip()
                 
+                # Basic validation to skip empty rows or 'nan' strings
                 if question and answer and question.lower() != 'nan' and answer.lower() != 'nan':
                     flashcards.append({'question': question, 'answer': answer})
                     
@@ -267,12 +272,6 @@ def reset_order():
     if st.session_state.original_flashcards:
         st.session_state.flashcards = st.session_state.original_flashcards.copy()
         st.session_state.current_index = 0
-        st.session_state.show_answer = False
-
-def jump_to_card(card_number):
-    """Jump to a specific card number (1-indexed)"""
-    if 1 <= card_number <= len(st.session_state.flashcards):
-        st.session_state.current_index = card_number - 1
         st.session_state.show_answer = False
 
 # --- Main App Layout ---
@@ -313,8 +312,8 @@ else:
     total_cards = len(st.session_state.flashcards)
     current_num = st.session_state.current_index + 1
 
-    # Header with dynamic title
-    col1, col2 = st.columns([3, 1])
+    # Header with dynamic title - FIXED ALIGNMENT [4, 1]
+    col1, col2 = st.columns([4, 1])
     with col1:
         st.markdown(f"<h1>🧠 {st.session_state.app_title}</h1>", unsafe_allow_html=True)
     with col2:
@@ -326,8 +325,8 @@ else:
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Main card area with navigation
-    col1, col2, col3 = st.columns([0.5, 6, 0.5])
+    # Main card area with navigation - FIXED ALIGNMENT [1, 6, 1]
+    col1, col2, col3 = st.columns([1, 6, 1])
 
     with col1:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -371,9 +370,9 @@ else:
         st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Footer with progress and controls
+    # Footer with progress and controls - FIXED ALIGNMENT [1.5, 2, 1, 1.5]
     st.markdown("<br><br>", unsafe_allow_html=True)
-    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2, 0.6, 1.2])
+    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2, 1, 1.5])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
@@ -399,32 +398,3 @@ else:
         # Jump to card number input with dynamic key to force refresh
         jump_card = st.number_input(
             "Jump to Card",
-            min_value=1,
-            max_value=total_cards,
-            value=current_num,
-            step=1,
-            key=f"jump_input_{current_num}",
-            label_visibility="collapsed",
-            help="Enter card number to jump directly"
-        )
-        if jump_card != current_num:
-            jump_to_card(jump_card)
-            st.rerun()
-    
-    with col4_footer:
-        col_metric, col_slider = st.columns([1.2, 1])
-        with col_metric:
-            st.markdown("<div style='margin-top: 8px;'>", unsafe_allow_html=True)
-            st.metric("Completion", f"{int(progress * 100)}%")
-            st.markdown("</div>", unsafe_allow_html=True)
-        with col_slider:
-            st.markdown("<div class='font-size-slider' style='padding-top: 16px;'>", unsafe_allow_html=True)
-            st.session_state.font_size = st.slider(
-                "Font Size",
-                min_value=16,
-                max_value=48,
-                value=st.session_state.font_size,
-                step=2,
-                label_visibility="collapsed"
-            )
-            st.markdown("</div>", unsafe_allow_html=True)

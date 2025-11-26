@@ -237,8 +237,6 @@ if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
 if 'font_size' not in st.session_state:
     st.session_state.font_size = 28
-if 'jump_to_card' not in st.session_state:
-    st.session_state.jump_to_card = 1
 
 # --- Data Loading Function (FIXED) ---
 
@@ -293,13 +291,11 @@ def next_card():
     if st.session_state.current_index < len(st.session_state.flashcards) - 1:
         st.session_state.current_index += 1
         st.session_state.show_answer = False
-        st.session_state.jump_to_card = st.session_state.current_index + 1
 
 def previous_card():
     if st.session_state.current_index > 0:
         st.session_state.current_index -= 1
         st.session_state.show_answer = False
-        st.session_state.jump_to_card = st.session_state.current_index + 1
 
 def toggle_answer():
     st.session_state.show_answer = not st.session_state.show_answer
@@ -307,21 +303,18 @@ def toggle_answer():
 def restart():
     st.session_state.current_index = 0
     st.session_state.show_answer = False
-    st.session_state.jump_to_card = 1
 
 def shuffle_cards():
     if st.session_state.flashcards:
         random.shuffle(st.session_state.flashcards)
         st.session_state.current_index = 0
         st.session_state.show_answer = False
-        st.session_state.jump_to_card = 1
 
 def reset_order():
     if st.session_state.original_flashcards:
         st.session_state.flashcards = st.session_state.original_flashcards.copy()
         st.session_state.current_index = 0
         st.session_state.show_answer = False
-        st.session_state.jump_to_card = 1
 
 # --- Main App Layout ---
 
@@ -351,7 +344,6 @@ if not st.session_state.file_loaded or not st.session_state.flashcards:
                     st.session_state.file_loaded = True
                     st.session_state.current_index = 0
                     st.session_state.show_answer = False
-                    st.session_state.jump_to_card = 1
                     st.success(f"✅ Loaded {len(flashcards)} flashcards for: {st.session_state.app_title}!")
                     st.rerun()
                 else:
@@ -449,21 +441,21 @@ else:
     with col3_footer:
         st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", 
                     unsafe_allow_html=True)
-        # Jump to card number input - FIXED: Using static key and session state
+        # Jump to card number input - Uses current_num for value, static key to prevent flicker
         jump_card = st.number_input(
             "Jump to Card",
             min_value=1,
             max_value=total_cards,
-            value=st.session_state.jump_to_card,
+            value=current_num,
             step=1,
-            key="jump_input_static",
+            key="jump_input",
             label_visibility="collapsed",
             help="Enter card number to jump directly"
         )
+        # Only process jump if value actually changed
         if jump_card != current_num:
             st.session_state.current_index = jump_card - 1
             st.session_state.show_answer = False
-            st.session_state.jump_to_card = jump_card
             st.rerun()
     
     with col4_footer:

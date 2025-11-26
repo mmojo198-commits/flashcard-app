@@ -37,12 +37,12 @@ st.markdown("""
     
     /* Animations */
     @keyframes flipIn { 0% { transform: rotateY(90deg); opacity: 0; } 100% { transform: rotateY(0deg); opacity: 1; } }
-    .animate-flip { animation: flipIn 0.6s cubic-bezier(0.4, 0.2, 0.2, 1) forwards; }
+    .animate-flip { animation: flipIn 0.3s cubic-bezier(0.4, 0.2, 0.2, 1) forwards; }
     @keyframes buttonPress { 0% { transform: scale(0.96); } 50% { transform: scale(0.96); } 100% { transform: scale(1); } }
 
     /* 3D Card */
     .card-container { perspective: 1000px; margin: 40px auto; max-width: 700px; min-height: 400px; }
-    .card-flipper { position: relative; width: 100%; height: 100%; min-height: 400px; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
+    .card-flipper { position: relative; width: 100%; height: 100%; min-height: 400px; transform-style: preserve-3d; transition: transform 0.2s cubic-bezier(0.4, 0.2, 0.2, 1); }
     .card-flipper.flipped { transform: rotateY(180deg); }
     .card-face { position: absolute; width: 100%; height: 100%; min-height: 400px; max-height: 500px; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 24px; padding: 60px 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; overflow-y: auto; overflow-x: hidden; }
     .card-front { background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%); border: 1px solid #475569; transform: rotateY(0deg); z-index: 2; }
@@ -241,3 +241,4 @@ else:
         st.markdown("<div class='font-size-slider' style='margin-top: 16px;'><p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
         st.session_state.font_size = st.slider("Font", 16, 48, st.session_state.font_size, 2, label_visibility="collapsed")
         st.markdown("</div>", unsafe_allow_html=True)
+

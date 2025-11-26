@@ -29,9 +29,6 @@ if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
 if 'font_size' not in st.session_state:
     st.session_state.font_size = 28
-# Track animation direction ('next' or 'prev')
-if 'anim_direction' not in st.session_state:
-    st.session_state.anim_direction = 'next'
 
 # --- Custom CSS ---
 st.markdown("""
@@ -59,29 +56,18 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    /* --- ANIMATIONS START --- */
-    
-    @keyframes slideInRight {
-        from { transform: translateX(50px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+    /* --- NEW FLIP TRANSITION ANIMATION --- */
+    @keyframes flipIn {
+        0% { transform: rotateY(90deg); opacity: 0; }
+        100% { transform: rotateY(0deg); opacity: 1; }
     }
     
-    @keyframes slideInLeft {
-        from { transform: translateX(-50px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+    .animate-flip {
+        animation: flipIn 0.6s cubic-bezier(0.4, 0.2, 0.2, 1) forwards;
     }
-    
-    .animate-next {
-        animation: slideInRight 0.3s ease-out forwards;
-    }
-    
-    .animate-prev {
-        animation: slideInLeft 0.3s ease-out forwards;
-    }
-    
-    /* --- ANIMATIONS END --- */
+    /* --- END ANIMATION --- */
 
-    /* 3D Flip Animation Styles */
+    /* 3D Flip Card Styles */
     .card-container {
         perspective: 1000px;
         margin: 40px auto;
@@ -178,13 +164,11 @@ st.markdown("""
         color: white;
         border: none;
         border-radius: 12px;
-        padding: 10px 20px;  /* Reduced padding for better fit */
-        font-size: 15px;     /* Balanced font size */
+        padding: 10px 20px;
+        font-size: 15px;
         font-weight: 500;
         transition: all 0.3s ease;
         cursor: pointer;
-        
-        /* Fix for odd alignment/wrapping */
         white-space: nowrap;
         min-width: 0;
         display: inline-flex;
@@ -294,13 +278,11 @@ def load_flashcards(uploaded_file):
 def next_card():
     if st.session_state.current_index < len(st.session_state.flashcards) - 1:
         st.session_state.show_answer = False
-        st.session_state.anim_direction = 'next'
         st.session_state.current_index += 1
 
 def previous_card():
     if st.session_state.current_index > 0:
         st.session_state.show_answer = False
-        st.session_state.anim_direction = 'prev'
         st.session_state.current_index -= 1
 
 def toggle_answer():
@@ -309,21 +291,18 @@ def toggle_answer():
 def restart():
     st.session_state.show_answer = False
     st.session_state.current_index = 0
-    st.session_state.anim_direction = 'next'
 
 def shuffle_cards():
     if st.session_state.flashcards:
         random.shuffle(st.session_state.flashcards)
         st.session_state.show_answer = False
         st.session_state.current_index = 0
-        st.session_state.anim_direction = 'next'
 
 def reset_order():
     if st.session_state.original_flashcards:
         st.session_state.flashcards = st.session_state.original_flashcards.copy()
         st.session_state.show_answer = False
         st.session_state.current_index = 0
-        st.session_state.anim_direction = 'next'
 
 # --- Main App Layout ---
 
@@ -375,13 +354,12 @@ else:
 
     with col2:
         flip_class = "flipped" if st.session_state.show_answer else ""
-        anim_class = "animate-next" if st.session_state.anim_direction == 'next' else "animate-prev"
         
-        # Unique ID to trigger animation on re-render
+        # Unique ID to trigger flip animation on every index change
         card_container_id = f"card-container-{st.session_state.current_index}"
 
         st.markdown(f"""
-        <div id="{card_container_id}" class="card-container {anim_class}">
+        <div id="{card_container_id}" class="card-container animate-flip">
             <div class="card-flipper {flip_class}">
                 <div class="card-face card-front">
                     <div class="card-label">QUESTION</div>
@@ -408,7 +386,6 @@ else:
 
     st.markdown("<br><br>", unsafe_allow_html=True)
     
-    # Modified column ratios to give buttons more space
     col1_footer, col2_footer, col3_footer, col4_footer = st.columns([2, 2, 1, 1])
     
     with col1_footer:
@@ -431,7 +408,6 @@ else:
         st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", unsafe_allow_html=True)
         jump_card = st.number_input("Jump to Card", min_value=1, max_value=total_cards, value=current_num, step=1, key=f"jump_input_{current_num}", label_visibility="collapsed")
         if jump_card != current_num:
-            st.session_state.anim_direction = 'next' if jump_card > current_num else 'prev'
             st.session_state.current_index = jump_card - 1
             st.session_state.show_answer = False
             st.rerun()

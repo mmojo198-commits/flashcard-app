@@ -205,4 +205,39 @@ else:
         
         c_a, c_b, c_c = st.columns([2, 1, 2])
         with c_b:
-            st.button("🔄 Flip Card
+            st.button("🔄 Flip Card", type="primary", on_click=toggle_answer, use_container_width=True)
+
+    with col3: # Right Arrow
+        st.markdown("<div style='height: 10px;'></div><div class='nav-button'>", unsafe_allow_html=True)
+        st.button("→", on_click=change_card, args=(1,), disabled=(idx == total - 1), key="next")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    # Footer Controls
+    f_c1, f_c2, f_c3, f_c4 = st.columns([2, 2, 1, 1])
+    
+    with f_c1:
+        b1, b2, b3 = st.columns(3)
+        b1.button("🔢 Order", on_click=reset_order, use_container_width=True)
+        b2.button("🔀 Shuffle", on_click=shuffle_cards, use_container_width=True)
+        b3.button("⏮️ Reset", on_click=restart, use_container_width=True)
+                
+    with f_c2:
+        st.markdown("<div class='progress-container'>", unsafe_allow_html=True)
+        prog = (idx + 1) / total
+        st.progress(prog)
+        st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600; margin-top: 5px;'>Card {idx + 1} of {total} | Completion: {int(prog * 100)}%</p></div>", unsafe_allow_html=True)
+    
+    with f_c3:
+        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", unsafe_allow_html=True)
+        jump_val = st.number_input("Jump", 1, total, idx + 1, step=1, key=f"jump_{idx}", label_visibility="collapsed")
+        if jump_val != idx + 1:
+            st.session_state.current_index = jump_val - 1
+            st.session_state.show_answer = False
+            st.rerun()
+    
+    with f_c4:
+        st.markdown("<div class='font-size-slider' style='margin-top: 16px;'><p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
+        st.session_state.font_size = st.slider("Font", 16, 48, st.session_state.font_size, 2, label_visibility="collapsed")
+        st.markdown("</div>", unsafe_allow_html=True)

@@ -40,18 +40,18 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    /* 3D Flip Animation Styles */
+/* 3D Flip Animation Styles */
     .card-container {
         perspective: 1000px;
         margin: 40px auto;
         max-width: 700px;
-        min-height: 400px;
+        min-height: 500px;
     }
     .card-flipper {
         position: relative;
         width: 100%;
         height: 100%;
-        min-height: 400px;
+        min-height: 500px;
         transform-style: preserve-3d;
         transition: transform 0.6s ease-in-out;
     }
@@ -62,8 +62,8 @@ st.markdown("""
         position: absolute;
         width: 100%;
         height: 100%;
-        min-height: 400px;
-        max-height: 500px;
+        min-height: 500px;
+        max-height: 600px;
         backface-visibility: hidden;
         border-radius: 24px;
         padding: 40px 40px;
@@ -75,6 +75,20 @@ st.markdown("""
         text-align: center;
         overflow-y: auto;
         overflow-x: hidden;
+    }
+    
+    /* Mobile adjustments for taller cards */
+    @media (max-width: 768px) {
+        .card-container {
+            min-height: 550px;
+        }
+        .card-flipper {
+            min-height: 550px;
+        }
+        .card-face {
+            min-height: 550px;
+            max-height: 650px;
+        }
     }
     .card-front {
         background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
@@ -288,14 +302,14 @@ def load_flashcards(uploaded_file):
 # --- Navigation and Control Functions ---
 
 def next_card():
+    st.session_state.show_answer = False  # Reset flip state FIRST
     if st.session_state.current_index < len(st.session_state.flashcards) - 1:
         st.session_state.current_index += 1
-        st.session_state.show_answer = False
 
 def previous_card():
+    st.session_state.show_answer = False  # Reset flip state FIRST
     if st.session_state.current_index > 0:
         st.session_state.current_index -= 1
-        st.session_state.show_answer = False
 
 def toggle_answer():
     st.session_state.show_answer = not st.session_state.show_answer
@@ -470,4 +484,5 @@ else:
             label_visibility="collapsed"
         )
         st.markdown("</div>", unsafe_allow_html=True)
+
 

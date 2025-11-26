@@ -63,15 +63,18 @@ st.markdown("""
         width: 100%;
         height: 100%;
         min-height: 400px;
+        max-height: 500px;
         backface-visibility: hidden;
         border-radius: 24px;
-        padding: 60px 40px;
+        padding: 40px 40px;
         box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: center;
         text-align: center;
+        overflow-y: auto;
+        overflow-x: hidden;
     }
     .card-front {
         background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
@@ -88,6 +91,10 @@ st.markdown("""
         line-height: 1.6;
         font-weight: 400;
         margin: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+        padding: 20px 0;
     }
     .card-label {
         color: #e2e8f0;
@@ -96,7 +103,25 @@ st.markdown("""
         letter-spacing: 2px;
         margin-bottom: 20px;
         font-weight: 600;
+        flex-shrink: 0;
     }
+    
+    /* Custom scrollbar for card content */
+    .card-face::-webkit-scrollbar {
+        width: 8px;
+    }
+    .card-face::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+    .card-face::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 10px;
+    }
+    .card-face::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+    }
+    
     .stButton > button {
         background: #4f46e5;
         color: white;
@@ -162,11 +187,18 @@ st.markdown("""
     .stSlider {
         margin: 0 !important;
         padding: 0 !important;
+        max-width: 200px !important;
     }
     
-    /* Jump to card input styling */
+    /* Jump to card input styling - CENTER ALIGNED */
     .stNumberInput {
         max-width: 150px !important;
+        margin: 0 auto !important;
+        display: flex !important;
+        justify-content: center !important;
+    }
+    .stNumberInput > div {
+        margin: 0 auto !important;
     }
     .stNumberInput > div > div > input {
         text-align: center !important;
@@ -312,7 +344,7 @@ else:
     total_cards = len(st.session_state.flashcards)
     current_num = st.session_state.current_index + 1
 
-    # Header with dynamic title - FIXED ALIGNMENT [4, 1]
+    # Header with dynamic title
     col1, col2 = st.columns([4, 1])
     with col1:
         st.markdown(f"<h1>🧠 {st.session_state.app_title}</h1>", unsafe_allow_html=True)
@@ -325,7 +357,7 @@ else:
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Main card area with navigation - FIXED ALIGNMENT [1, 6, 1]
+    # Main card area with navigation
     col1, col2, col3 = st.columns([1, 6, 1])
 
     with col1:
@@ -370,7 +402,7 @@ else:
         st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Footer with progress and controls - FIXED ALIGNMENT [1.5, 2, 1, 1.5]
+    # Footer with progress and controls
     st.markdown("<br><br>", unsafe_allow_html=True)
     col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2, 1, 1.5])
     
@@ -412,19 +444,23 @@ else:
             st.rerun()
     
     with col4_footer:
-        # FIXED: Removed nested columns, better vertical alignment
-        st.markdown("<div style='margin-top: 8px;'>", unsafe_allow_html=True)
-        st.metric("Completion", f"{int(progress * 100)}%")
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Use sub-columns to keep metric and font size side by side
+        col_metric, col_font = st.columns([1, 1])
         
-        st.markdown("<div class='font-size-slider' style='margin-top: 8px;'>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px;'>Font Size</p>", unsafe_allow_html=True)
-        st.session_state.font_size = st.slider(
-            "Font Size",
-            min_value=16,
-            max_value=48,
-            value=st.session_state.font_size,
-            step=2,
-            label_visibility="collapsed"
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
+        with col_metric:
+            st.markdown("<div style='margin-top: 8px;'>", unsafe_allow_html=True)
+            st.metric("Completion", f"{int(progress * 100)}%")
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        with col_font:
+            st.markdown("<div class='font-size-slider' style='margin-top: 16px;'>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 11px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
+            st.session_state.font_size = st.slider(
+                "Font Size",
+                min_value=16,
+                max_value=48,
+                value=st.session_state.font_size,
+                step=2,
+                label_visibility="collapsed"
+            )
+            st.markdown("</div>", unsafe_allow_html=True)

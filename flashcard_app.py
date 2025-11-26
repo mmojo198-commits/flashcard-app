@@ -372,7 +372,7 @@ else:
 
     # Footer with progress and controls
     st.markdown("<br><br>", unsafe_allow_html=True)
-    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.2, 1.2, 0.8, 1])
+    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2, 0.6, 1.2])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
@@ -389,11 +389,11 @@ else:
     with col2_footer:
         progress = current_num / total_cards
         st.progress(progress)
-        st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600;'>Card {current_num} of {total_cards}</p>", 
+        st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600; margin-top: 5px;'>Card {current_num} of {total_cards}</p>", 
                     unsafe_allow_html=True)
     
     with col3_footer:
-        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px;'>Jump to:</p>", 
+        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", 
                     unsafe_allow_html=True)
         # Jump to card number input with dynamic key to force refresh
         jump_card = st.number_input(
@@ -412,11 +412,13 @@ else:
             st.rerun()
     
     with col4_footer:
-        col_metric, col_slider = st.columns([1, 1])
+        col_metric, col_slider = st.columns([1.2, 1])
         with col_metric:
+            st.markdown("<div style='margin-top: 8px;'>", unsafe_allow_html=True)
             st.metric("Completion", f"{int(progress * 100)}%")
+            st.markdown("</div>", unsafe_allow_html=True)
         with col_slider:
-            st.markdown("<div class='font-size-slider' style='padding-top: 8px;'>", unsafe_allow_html=True)
+            st.markdown("<div class='font-size-slider' style='padding-top: 16px;'>", unsafe_allow_html=True)
             st.session_state.font_size = st.slider(
                 "Font Size",
                 min_value=16,

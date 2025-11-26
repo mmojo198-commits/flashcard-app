@@ -1,8 +1,10 @@
 import streamlit as st
 import pandas as pd
+import io
 import json
 from pathlib import Path
 import random
+import time
 
 # --- Configuration and Styling ---
 
@@ -13,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for minimal top space
+# Custom CSS for minimal top space + flip animations including "continuous forward flip"
 st.markdown("""
 <style>
     .block-container {
@@ -52,11 +54,31 @@ st.markdown("""
         height: 100%;
         min-height: 500px;
         transform-style: preserve-3d;
+        /* Default transition length (match in python sleep) */
         transition: transform 0.6s ease-in-out;
+        transform: rotateY(0deg);
     }
+
+    /* Normal flipped state (question -> answer shows 180deg) */
     .card-flipper.flipped {
         transform: rotateY(180deg);
     }
+
+    /*
+     Continuous forward-flip:
+     When user is on the ANSWER (flipped = 180deg) and requests "next", we
+     add a class that animates from 180deg -> 360deg (so it looks like it keeps spinning forward).
+     The specificity below ensures .flip-continue takes precedence when present.
+    */
+    .card-flipper.flip-continue {
+        transform: rotateY(360deg) !important;
+    }
+
+    /* Backwards continuous flip (if you want to implement reverse continuity later) */
+    .card-flipper.flip-back-continue {
+        transform: rotateY(-180deg) !important;
+    }
+
     .card-face {
         position: absolute;
         width: 100%;
@@ -238,7 +260,7 @@ st.markdown("""
 
 if 'flashcards' not in st.session_state:
     st.session_state.flashcards = []
-if 'original_flashcards' not in st.session_state: 
+if 'original_flashcards' not in st.session_state:
     st.session_state.original_flashcards = []
 if 'current_index' not in st.session_state:
     st.session_state.current_index = 0
@@ -250,12 +272,19 @@ if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
 if 'font_size' not in st.session_state:
     st.session_state.font_size = 28
+# existing key used to force clean re-render in other flows
 if 'card_key' not in st.session_state:
     st.session_state.card_key = 0
-if 'trigger_flip_animation' not in st.session_state:
-    st.session_state.trigger_flip_animation = False
 
-# --- Data Loading Function ---
+# New states for controlled animation transitions
+if 'animating' not in st.session_state:
+    st.session_state.animating = False
+if 'animation_type' not in st.session_state:
+    st.session_state.animation_type = None
+if 'pending_next' not in st.session_state:
+    st.session_state.pending_next = False
+
+# --- Data Loading Function (FIXED) ---
 
 def load_flashcards(uploaded_file):
     file_extension = Path(uploaded_file.name).suffix.lower()
@@ -264,8 +293,10 @@ def load_flashcards(uploaded_file):
 
     try:
         if file_extension in ['.xlsx', '.xls']:
+            # Added header=None to read the first row as data
             df = pd.read_excel(uploaded_file, header=None)
         elif file_extension == '.csv':
+            # Added header=None to read the first row as data
             df = pd.read_csv(uploaded_file, header=None)
         elif file_extension == '.json':
             uploaded_file.seek(0)
@@ -278,10 +309,12 @@ def load_flashcards(uploaded_file):
                 return []
         
         if df is not None:
+            # Ensure we have at least 2 columns
             if df.shape[1] < 2:
                 st.error("File must have at least two columns: Question and Answer.")
                 return []
             
+            # Since header=None, columns are integers 0 and 1
             questions_col = df.columns[0]
             answers_col = df.columns[1]
             
@@ -289,6 +322,7 @@ def load_flashcards(uploaded_file):
                 question = str(row[questions_col]).strip()
                 answer = str(row[answers_col]).strip()
                 
+                # Basic validation to skip empty rows or 'nan' strings
                 if question and answer and question.lower() != 'nan' and answer.lower() != 'nan':
                     flashcards.append({'question': question, 'answer': answer})
                     
@@ -298,46 +332,91 @@ def load_flashcards(uploaded_file):
         return []
 
 # --- Navigation and Control Functions ---
+# NOTE: we implement Option B: continuous forward flip from Answer -> Next Question
+ANIMATION_DURATION = 0.6  # seconds (keep this synced with CSS transition)
 
-def next_card():
-    # If currently showing answer, trigger flip animation
+def next_card_clicked():
+    """Called by the Next button. Handles the Option B behavior:
+       - If current view is ANSWER: animate forward (180->360deg) and then increment index,
+         ensuring the new card appears on the QUESTION side without flashing its answer.
+       - Otherwise: go to next card immediately.
+    """
+    # If already animating, ignore further clicks
+    if st.session_state.animating:
+        return
+
+    # If we are currently showing the answer, perform continuous forward flip animation
     if st.session_state.show_answer:
-        st.session_state.trigger_flip_animation = True
-    
-    st.session_state.show_answer = False
+        # Start animation: keep show_answer True (so CSS starts from flipped 180deg),
+        # mark animating and set animation_type so render will include the extra class.
+        st.session_state.animating = True
+        st.session_state.animation_type = 'forward_continue'
+        # Do NOT change card_key or index yet — we need the same DOM element to animate.
+        st.experimental_rerun()
+        return
+
+    # Normal next movement when not showing answer
     if st.session_state.current_index < len(st.session_state.flashcards) - 1:
         st.session_state.current_index += 1
+        st.session_state.show_answer = False
+        st.session_state.card_key += 1  # Force clean re-render for other flows
+        st.experimental_rerun()
 
-def previous_card():
-    # If currently showing answer, trigger flip animation
+def previous_card_clicked():
+    # If animating, ignore
+    if st.session_state.animating:
+        return
+
+    # For simplicity, previous while on ANSWER will just flip back to question and then move.
+    # If you want continuous reverse behavior you can extend similarly.
     if st.session_state.show_answer:
-        st.session_state.trigger_flip_animation = True
-    
-    st.session_state.show_answer = False
+        # flip back to question first (normal flip back), then mark pending_prev so we move after slight delay
+        st.session_state.show_answer = False
+        st.session_state.pending_prev = True
+        # keep DOM same to allow the flip-back animation to run
+        st.experimental_rerun()
+        return
+
     if st.session_state.current_index > 0:
         st.session_state.current_index -= 1
+        st.session_state.show_answer = False
+        st.session_state.card_key += 1
+        st.experimental_rerun()
 
 def toggle_answer():
+    if st.session_state.animating:
+        return
     st.session_state.show_answer = not st.session_state.show_answer
+    # Small flows don't need card_key bump — we want CSS flip to animate naturally
+    st.experimental_rerun()
 
 def restart():
+    if st.session_state.animating:
+        return
     st.session_state.current_index = 0
     st.session_state.show_answer = False
-    st.session_state.trigger_flip_animation = False
+    st.session_state.card_key += 1
+    st.experimental_rerun()
 
 def shuffle_cards():
+    if st.session_state.animating:
+        return
     if st.session_state.flashcards:
         random.shuffle(st.session_state.flashcards)
         st.session_state.current_index = 0
         st.session_state.show_answer = False
-        st.session_state.trigger_flip_animation = False
+        st.session_state.card_key += 1
+        st.experimental_rerun()
 
 def reset_order():
+    if st.session_state.animating:
+        return
     if st.session_state.original_flashcards:
         st.session_state.flashcards = st.session_state.original_flashcards.copy()
         st.session_state.current_index = 0
         st.session_state.show_answer = False
-        st.session_state.trigger_flip_animation = False
+        st.session_state.card_key += 1
+        st.experimental_rerun()
 
 # --- Main App Layout ---
 
@@ -363,13 +442,13 @@ if not st.session_state.file_loaded or not st.session_state.flashcards:
                 flashcards = load_flashcards(uploaded_file)
                 if flashcards:
                     st.session_state.flashcards = flashcards
-                    st.session_state.original_flashcards = flashcards.copy() 
+                    st.session_state.original_flashcards = flashcards.copy()
                     st.session_state.file_loaded = True
                     st.session_state.current_index = 0
                     st.session_state.show_answer = False
                     st.session_state.card_key = 0
                     st.success(f"✅ Loaded {len(flashcards)} flashcards for: {st.session_state.app_title}!")
-                    st.rerun()
+                    st.experimental_rerun()
                 else:
                     st.error("❌ No valid flashcards found in the file! Please check the file structure.")
 
@@ -385,10 +464,11 @@ else:
     with col2:
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
         if st.button("📤 Upload New", use_container_width=True, key="new_upload"):
+            # Reset everything to allow new upload
             st.session_state.file_loaded = False
             st.session_state.flashcards = []
             st.session_state.original_flashcards = []
-            st.rerun()
+            st.experimental_rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Main card area with navigation
@@ -397,22 +477,26 @@ else:
     with col1:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        st.button("←", on_click=previous_card, disabled=st.session_state.current_index == 0, key="prev")
+        disabled_prev = st.session_state.current_index == 0 or st.session_state.animating
+        st.button("←", on_click=previous_card_clicked, disabled=disabled_prev, key="prev")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        # Determine flip state
+        # decide classes for card-flipper based on state
+        classes = []
         if st.session_state.show_answer:
-            flip_class = "flipped"
-        elif st.session_state.trigger_flip_animation:
-            flip_class = "flipped"
-        else:
-            flip_class = ""
-        
-        # 3D Flip Card Container
+            classes.append("flipped")
+        # If animating forward, add continuous flip class to animate 180->360
+        if st.session_state.animating and st.session_state.animation_type == 'forward_continue':
+            classes.append("flip-continue")
+        flip_class = " ".join(classes)
+
+        # 3D Flip Card Container with unique key to force clean re-render in other flows
+        # We still keep card_key, but we MUST NOT change it at the start of the forward animation,
+        # otherwise the DOM would be replaced and the animation wouldn't run.
         st.markdown(f"""
-        <div class="card-container">
-            <div class="card-flipper {flip_class}" id="card-flipper-{st.session_state.current_index}">
+        <div class="card-container" key="card-{st.session_state.card_key}">
+            <div class="card-flipper {flip_class}">
                 <!-- Front of Card (Question) -->
                 <div class="card-face card-front">
                     <div class="card-label">QUESTION</div>
@@ -427,55 +511,75 @@ else:
         </div>
         """, unsafe_allow_html=True)
         
-        # Trigger animation then reset
-        if st.session_state.trigger_flip_animation:
-            st.markdown("""
-            <script>
-            setTimeout(function() {
-                var flipper = document.getElementById('card-flipper-""" + str(st.session_state.current_index) + """');
-                if (flipper) {
-                    flipper.classList.remove('flipped');
-                }
-            }, 50);
-            </script>
-            """, unsafe_allow_html=True)
-            st.session_state.trigger_flip_animation = False
-        
         col_a, col_b, col_c = st.columns([2, 1, 2])
         with col_b:
             button_text = "🔄 Flip Card"
+            # provide visual disabled when animating
             if st.button(button_text, 
                          on_click=toggle_answer, 
                          use_container_width=True,
+                         disabled=st.session_state.animating,
                          key="flip-btn"):
                 pass
 
     with col3:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
+        disabled_next = st.session_state.current_index == total_cards - 1 or st.session_state.animating
+        # Wire to our next_card_clicked handler
+        st.button("→", on_click=next_card_clicked, disabled=disabled_next, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Footer with progress and controls
+    # If we started a forward continuous animation, wait for it to finish, then move to next card
+    # (We intentionally block here for the animation duration so the CSS can run on the same DOM element)
+    if st.session_state.animating and st.session_state.animation_type == 'forward_continue':
+        # Sleep for the animation duration (slightly more to ensure completion)
+        time.sleep(ANIMATION_DURATION + 0.05)
+
+        # After animation completes: move to next card and ensure the new card shows QUESTION side
+        if st.session_state.current_index < total_cards - 1:
+            st.session_state.current_index += 1
+        # reset animation flags
+        st.session_state.animating = False
+        st.session_state.animation_type = None
+        # ensure next card renders with question visible (no flipped class) and force clean re-render
+        st.session_state.show_answer = False
+        st.session_state.card_key += 1
+        st.experimental_rerun()
+
+    # Handle pending_prev if we implemented "flip back then prev" pattern
+    if getattr(st.session_state, "pending_prev", False):
+        # allow flip-back animation to run
+        time.sleep(ANIMATION_DURATION + 0.05)
+        st.session_state.pending_prev = False
+        if st.session_state.current_index > 0:
+            st.session_state.current_index -= 1
+        st.session_state.show_answer = False
+        st.session_state.card_key += 1
+        st.experimental_rerun()
+
+    # Footer with progress and controls - CENTERED PROGRESS BAR
     st.markdown("<br><br>", unsafe_allow_html=True)
     col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2.5, 1, 1])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
         with c1:
-            if st.button("🔢 Order", on_click=reset_order, use_container_width=True, help="Reset to original file order"):
+            if st.button("🔢 Order", on_click=reset_order, use_container_width=True, help="Reset to original file order", disabled=st.session_state.animating):
                 pass
         with c2:
-            if st.button("🔀 Shuffle", on_click=shuffle_cards, use_container_width=True, help="Randomize cards"):
+            if st.button("🔀 Shuffle", on_click=shuffle_cards, use_container_width=True, help="Randomize cards", disabled=st.session_state.animating):
                 pass
         with c3:
-            if st.button("⏮️ Reset", on_click=restart, use_container_width=True, help="Go back to first card"):
+            if st.button("⏮️ Reset", on_click=restart, use_container_width=True, help="Go back to first card", disabled=st.session_state.animating):
                 pass
                 
     with col2_footer:
+        # Wrapped in div for centering
         st.markdown("<div class='progress-container'>", unsafe_allow_html=True)
         progress = current_num / total_cards
         st.progress(progress)
+        # Combined card count and completion percentage in one line
         st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600; margin-top: 5px;'>Card {current_num} of {total_cards} | Completion: {int(progress * 100)}%</p>", 
                     unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
@@ -483,6 +587,7 @@ else:
     with col3_footer:
         st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", 
                     unsafe_allow_html=True)
+        # Jump to card number input with dynamic key to force refresh
         jump_card = st.number_input(
             "Jump to Card",
             min_value=1,
@@ -491,15 +596,17 @@ else:
             step=1,
             key=f"jump_input_{current_num}",
             label_visibility="collapsed",
-            help="Enter card number to jump directly"
+            help="Enter card number to jump directly",
+            disabled=st.session_state.animating
         )
-        if jump_card != current_num:
+        if jump_card != current_num and not st.session_state.animating:
             st.session_state.current_index = jump_card - 1
             st.session_state.show_answer = False
-            st.session_state.trigger_flip_animation = False
-            st.rerun()
+            st.session_state.card_key += 1  # Force re-render
+            st.experimental_rerun()
     
     with col4_footer:
+        # Only Font Size slider
         st.markdown("<div class='font-size-slider' style='margin-top: 16px;'>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
         st.session_state.font_size = st.slider(
@@ -508,6 +615,7 @@ else:
             max_value=48,
             value=st.session_state.font_size,
             step=2,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            disabled=st.session_state.animating
         )
         st.markdown("</div>", unsafe_allow_html=True)

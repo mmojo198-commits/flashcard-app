@@ -352,7 +352,7 @@ def next_card_clicked():
         st.session_state.animating = True
         st.session_state.animation_type = 'forward_continue'
         # Do NOT change card_key or index yet — we need the same DOM element to animate.
-        st.experimental_rerun()
+        st.rerun()
         return
 
     # Normal next movement when not showing answer
@@ -360,7 +360,7 @@ def next_card_clicked():
         st.session_state.current_index += 1
         st.session_state.show_answer = False
         st.session_state.card_key += 1  # Force clean re-render for other flows
-        st.experimental_rerun()
+        st.rerun()
 
 def previous_card_clicked():
     # If animating, ignore
@@ -374,21 +374,21 @@ def previous_card_clicked():
         st.session_state.show_answer = False
         st.session_state.pending_prev = True
         # keep DOM same to allow the flip-back animation to run
-        st.experimental_rerun()
+        st.rerun()
         return
 
     if st.session_state.current_index > 0:
         st.session_state.current_index -= 1
         st.session_state.show_answer = False
         st.session_state.card_key += 1
-        st.experimental_rerun()
+        st.rerun()
 
 def toggle_answer():
     if st.session_state.animating:
         return
     st.session_state.show_answer = not st.session_state.show_answer
     # Small flows don't need card_key bump — we want CSS flip to animate naturally
-    st.experimental_rerun()
+    st.rerun()
 
 def restart():
     if st.session_state.animating:
@@ -396,7 +396,7 @@ def restart():
     st.session_state.current_index = 0
     st.session_state.show_answer = False
     st.session_state.card_key += 1
-    st.experimental_rerun()
+    st.rerun()
 
 def shuffle_cards():
     if st.session_state.animating:
@@ -406,7 +406,7 @@ def shuffle_cards():
         st.session_state.current_index = 0
         st.session_state.show_answer = False
         st.session_state.card_key += 1
-        st.experimental_rerun()
+        st.rerun()
 
 def reset_order():
     if st.session_state.animating:
@@ -416,7 +416,7 @@ def reset_order():
         st.session_state.current_index = 0
         st.session_state.show_answer = False
         st.session_state.card_key += 1
-        st.experimental_rerun()
+        st.rerun()
 
 # --- Main App Layout ---
 
@@ -448,7 +448,7 @@ if not st.session_state.file_loaded or not st.session_state.flashcards:
                     st.session_state.show_answer = False
                     st.session_state.card_key = 0
                     st.success(f"✅ Loaded {len(flashcards)} flashcards for: {st.session_state.app_title}!")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("❌ No valid flashcards found in the file! Please check the file structure.")
 
@@ -468,7 +468,7 @@ else:
             st.session_state.file_loaded = False
             st.session_state.flashcards = []
             st.session_state.original_flashcards = []
-            st.experimental_rerun()
+            st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Main card area with navigation
@@ -545,7 +545,7 @@ else:
         # ensure next card renders with question visible (no flipped class) and force clean re-render
         st.session_state.show_answer = False
         st.session_state.card_key += 1
-        st.experimental_rerun()
+        st.rerun()
 
     # Handle pending_prev if we implemented "flip back then prev" pattern
     if getattr(st.session_state, "pending_prev", False):
@@ -556,7 +556,7 @@ else:
             st.session_state.current_index -= 1
         st.session_state.show_answer = False
         st.session_state.card_key += 1
-        st.experimental_rerun()
+        st.rerun()
 
     # Footer with progress and controls - CENTERED PROGRESS BAR
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -603,7 +603,7 @@ else:
             st.session_state.current_index = jump_card - 1
             st.session_state.show_answer = False
             st.session_state.card_key += 1  # Force re-render
-            st.experimental_rerun()
+            st.rerun()
     
     with col4_footer:
         # Only Font Size slider
@@ -619,3 +619,4 @@ else:
             disabled=st.session_state.animating
         )
         st.markdown("</div>", unsafe_allow_html=True)
+

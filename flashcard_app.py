@@ -4,7 +4,6 @@ import io
 import json
 from pathlib import Path
 import random
-import time
 
 # --- Configuration and Styling ---
 
@@ -15,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for minimal top space
+# Custom CSS
 st.markdown("""
 <style>
     .block-container {
@@ -48,17 +47,14 @@ st.markdown("""
         max-width: 700px;
         min-height: 400px;
     }
-    
     .card-flipper {
         position: relative;
         width: 100%;
         height: 100%;
         min-height: 400px;
         transform-style: preserve-3d;
-        transition: transform 0.6s ease-in-out;
+        transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
     }
-    
-    /* State: Flipped (Show Answer) */
     .card-flipper.flipped {
         transform: rotateY(180deg);
     }
@@ -69,8 +65,7 @@ st.markdown("""
         height: 100%;
         min-height: 400px;
         max-height: 500px;
-        /* Key fix: Ensure backface visibility is hidden on both faces */
-        -webkit-backface-visibility: hidden; 
+        -webkit-backface-visibility: hidden; /* Safari */
         backface-visibility: hidden;
         border-radius: 24px;
         padding: 40px 40px;
@@ -87,19 +82,31 @@ st.markdown("""
     .card-front {
         background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
         border: 1px solid #475569;
-        z-index: 2;
-        /* If not flipped, front is at 0deg */
         transform: rotateY(0deg);
+        z-index: 2;
     }
     
     .card-back {
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         border: 1px solid #059669;
-        /* Back is always rotated 180deg relative to container */
         transform: rotateY(180deg);
         z-index: 1;
     }
 
+    /* --- SPOILER FIX START --- */
+    /* By default (when not flipped), hide the content on the back face instantly */
+    .card-back .card-text, .card-back .card-label {
+        opacity: 0;
+        transition: opacity 0s; 
+    }
+
+    /* When flipped, fade the content in */
+    .flipped .card-back .card-text, .flipped .card-back .card-label {
+        opacity: 1;
+        transition: opacity 0.2s ease-in 0.2s; /* Delay allows the flip to start before showing text */
+    }
+    /* --- SPOILER FIX END --- */
+    
     .card-text {
         color: white;
         line-height: 1.6;
@@ -120,22 +127,13 @@ st.markdown("""
         flex-shrink: 0;
     }
     
-    /* Custom scrollbar for card content */
-    .card-face::-webkit-scrollbar {
-        width: 8px;
-    }
-    .card-face::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-    }
-    .card-face::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 10px;
-    }
-    .card-face::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.5);
-    }
+    /* Custom scrollbar */
+    .card-face::-webkit-scrollbar { width: 8px; }
+    .card-face::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    .card-face::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
+    .card-face::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
     
+    /* Buttons */
     .stButton > button {
         background: #4f46e5;
         color: white;
@@ -170,60 +168,28 @@ st.markdown("""
         align-items: center !important;
         justify-content: center !important;
     }
-    .nav-button > button:hover {
-        background: #475569 !important;
-    }
-    .nav-button:hover > button {
-        background: #475569 !important;
-    }
+    .nav-button > button:hover { background: #475569 !important; }
+    .nav-button:hover > button { background: #475569 !important; }
+    
+    /* Inputs */
     .stFileUploader {
         background: rgba(255,255,255,0.05);
         border-radius: 12px;
         padding: 20px;
         border: 2px dashed #475569;
     }
-    [data-testid="stMetricValue"] {
-        color: #a5b4fc !important;
-        font-size: 24px !important;
-    }
-    [data-testid="stMetricLabel"] {
-        color: #cbd5e1 !important;
-    }
-    div[data-testid="column"] {
-        gap: 0 !important;
-    }
+    [data-testid="stMetricValue"] { color: #a5b4fc !important; font-size: 24px !important; }
+    [data-testid="stMetricLabel"] { color: #cbd5e1 !important; }
+    div[data-testid="column"] { gap: 0 !important; }
     
-    /* Progress bar container - centered and constrained */
-    .progress-container {
-        max-width: 600px;
-        margin: 0 auto;
-    }
-    .stProgress > div > div {
-        max-width: 600px;
-        margin: 0 auto;
-    }
+    .progress-container { max-width: 600px; margin: 0 auto; }
+    .stProgress > div > div { max-width: 600px; margin: 0 auto; }
     
-    /* Compact slider styling for font size control */
-    .font-size-slider {
-        font-size: 12px !important;
-        color: #cbd5e1 !important;
-    }
-    .stSlider {
-        margin: 0 !important;
-        padding: 0 !important;
-        max-width: 220px !important;
-    }
+    .font-size-slider { font-size: 12px !important; color: #cbd5e1 !important; }
+    .stSlider { margin: 0 !important; padding: 0 !important; max-width: 220px !important; }
     
-    /* Jump to card input styling - CENTER ALIGNED */
-    .stNumberInput {
-        max-width: 150px !important;
-        margin: 0 auto !important;
-        display: flex !important;
-        justify-content: center !important;
-    }
-    .stNumberInput > div {
-        margin: 0 auto !important;
-    }
+    .stNumberInput { max-width: 150px !important; margin: 0 auto !important; display: flex !important; justify-content: center !important; }
+    .stNumberInput > div { margin: 0 auto !important; }
     .stNumberInput > div > div > input {
         text-align: center !important;
         color: white !important;
@@ -261,10 +227,8 @@ def load_flashcards(uploaded_file):
 
     try:
         if file_extension in ['.xlsx', '.xls']:
-            # Added header=None to read the first row as data
             df = pd.read_excel(uploaded_file, header=None)
         elif file_extension == '.csv':
-            # Added header=None to read the first row as data
             df = pd.read_csv(uploaded_file, header=None)
         elif file_extension == '.json':
             uploaded_file.seek(0)
@@ -277,12 +241,10 @@ def load_flashcards(uploaded_file):
                 return []
         
         if df is not None:
-            # Ensure we have at least 2 columns
             if df.shape[1] < 2:
                 st.error("File must have at least two columns: Question and Answer.")
                 return []
             
-            # Since header=None, columns are integers 0 and 1
             questions_col = df.columns[0]
             answers_col = df.columns[1]
             
@@ -290,7 +252,6 @@ def load_flashcards(uploaded_file):
                 question = str(row[questions_col]).strip()
                 answer = str(row[answers_col]).strip()
                 
-                # Basic validation to skip empty rows or 'nan' strings
                 if question and answer and question.lower() != 'nan' and answer.lower() != 'nan':
                     flashcards.append({'question': question, 'answer': answer})
                     
@@ -303,12 +264,12 @@ def load_flashcards(uploaded_file):
 
 def next_card():
     if st.session_state.current_index < len(st.session_state.flashcards) - 1:
-        st.session_state.show_answer = False # Reset flip state first
+        st.session_state.show_answer = False # Reset logic state
         st.session_state.current_index += 1
 
 def previous_card():
     if st.session_state.current_index > 0:
-        st.session_state.show_answer = False # Reset flip state first
+        st.session_state.show_answer = False # Reset logic state
         st.session_state.current_index -= 1
 
 def toggle_answer():
@@ -337,17 +298,8 @@ if not st.session_state.file_loaded or not st.session_state.flashcards:
     st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 18px;'>Upload your study deck (Excel, CSV, or JSON) to begin your review.</p>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        subject_input = st.text_input(
-            "Enter Subject or Deck Name (Optional)",
-            value="Flashcard Review",
-            max_chars=50,
-            help="This name will appear as the main title of your session."
-        )
-        uploaded_file = st.file_uploader(
-            "Choose a file",
-            type=['xlsx', 'xls', 'csv', 'json'],
-            help="Upload a file with Questions in the first column/field and Answers in the second."
-        )
+        subject_input = st.text_input("Enter Subject or Deck Name (Optional)", value="Flashcard Review", max_chars=50)
+        uploaded_file = st.file_uploader("Choose a file", type=['xlsx', 'xls', 'csv', 'json'])
         if uploaded_file:
             st.session_state.app_title = subject_input if subject_input else "Flashcard Review"
             with st.spinner(f'Loading flashcards for {st.session_state.app_title}...'):
@@ -358,17 +310,15 @@ if not st.session_state.file_loaded or not st.session_state.flashcards:
                     st.session_state.file_loaded = True
                     st.session_state.current_index = 0
                     st.session_state.show_answer = False
-                    st.success(f"✅ Loaded {len(flashcards)} flashcards for: {st.session_state.app_title}!")
                     st.rerun()
                 else:
-                    st.error("❌ No valid flashcards found in the file! Please check the file structure.")
+                    st.error("❌ No valid flashcards found in the file!")
 
 else:
     current_card = st.session_state.flashcards[st.session_state.current_index]
     total_cards = len(st.session_state.flashcards)
     current_num = st.session_state.current_index + 1
 
-    # Header with dynamic title
     col1, col2 = st.columns([4, 1])
     with col1:
         st.markdown(f"<h1>🧠 {st.session_state.app_title}</h1>", unsafe_allow_html=True)
@@ -381,7 +331,6 @@ else:
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Main card area with navigation
     col1, col2, col3 = st.columns([1, 6, 1])
 
     with col1:
@@ -391,19 +340,15 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        # Flip logic
         flip_class = "flipped" if st.session_state.show_answer else ""
         
-        # 3D Flip Card Container
         st.markdown(f"""
         <div class="card-container">
             <div class="card-flipper {flip_class}">
-                <!-- Front of Card (Question) -->
                 <div class="card-face card-front">
                     <div class="card-label">QUESTION</div>
                     <p class="card-text" style="font-size: {st.session_state.font_size}px;">{current_card['question']}</p>
                 </div>
-                <!-- Back of Card (Answer) -->
                 <div class="card-face card-back">
                     <div class="card-label">ANSWER</div>
                     <p class="card-text" style="font-size: {st.session_state.font_size}px;">{current_card['answer']}</p>
@@ -414,11 +359,7 @@ else:
         
         col_a, col_b, col_c = st.columns([2, 1, 2])
         with col_b:
-            button_text = "🔄 Flip Card"
-            if st.button(button_text, 
-                         on_click=toggle_answer, 
-                         use_container_width=True,
-                         key="flip-btn"):
+            if st.button("🔄 Flip Card", on_click=toggle_answer, use_container_width=True, key="flip-btn"):
                 pass
 
     with col3:
@@ -427,61 +368,35 @@ else:
         st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Footer with progress and controls - CENTERED PROGRESS BAR
     st.markdown("<br><br>", unsafe_allow_html=True)
     col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.5, 2.5, 1, 1])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
         with c1:
-            if st.button("🔢 Order", on_click=reset_order, use_container_width=True, help="Reset to original file order"):
-                pass
+            if st.button("🔢 Order", on_click=reset_order, use_container_width=True): pass
         with c2:
-            if st.button("🔀 Shuffle", on_click=shuffle_cards, use_container_width=True, help="Randomize cards"):
-                pass
+            if st.button("🔀 Shuffle", on_click=shuffle_cards, use_container_width=True): pass
         with c3:
-            if st.button("⏮️ Reset", on_click=restart, use_container_width=True, help="Go back to first card"):
-                pass
+            if st.button("⏮️ Reset", on_click=restart, use_container_width=True): pass
                 
     with col2_footer:
-        # Wrapped in div for centering
         st.markdown("<div class='progress-container'>", unsafe_allow_html=True)
         progress = current_num / total_cards
         st.progress(progress)
-        # Combined card count and completion percentage in one line
-        st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600; margin-top: 5px;'>Card {current_num} of {total_cards} | Completion: {int(progress * 100)}%</p>", 
-                    unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; color: white; font-size: 18px; font-weight: 600; margin-top: 5px;'>Card {current_num} of {total_cards} | Completion: {int(progress * 100)}%</p>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
     with col3_footer:
-        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", 
-                    unsafe_allow_html=True)
-        # Jump to card number input with dynamic key to force refresh
-        jump_card = st.number_input(
-            "Jump to Card",
-            min_value=1,
-            max_value=total_cards,
-            value=current_num,
-            step=1,
-            key=f"jump_input_{current_num}",
-            label_visibility="collapsed",
-            help="Enter card number to jump directly"
-        )
+        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px; margin-top: 8px;'>Jump to:</p>", unsafe_allow_html=True)
+        jump_card = st.number_input("Jump to Card", min_value=1, max_value=total_cards, value=current_num, step=1, key=f"jump_input_{current_num}", label_visibility="collapsed")
         if jump_card != current_num:
             st.session_state.current_index = jump_card - 1
             st.session_state.show_answer = False
             st.rerun()
     
     with col4_footer:
-        # Only Font Size slider
         st.markdown("<div class='font-size-slider' style='margin-top: 16px;'>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 4px;'>Font Size</p>", unsafe_allow_html=True)
-        st.session_state.font_size = st.slider(
-            "Font Size",
-            min_value=16,
-            max_value=48,
-            value=st.session_state.font_size,
-            step=2,
-            label_visibility="collapsed"
-        )
+        st.session_state.font_size = st.slider("Font Size", min_value=16, max_value=48, value=st.session_state.font_size, step=2, label_visibility="collapsed")
         st.markdown("</div>", unsafe_allow_html=True)

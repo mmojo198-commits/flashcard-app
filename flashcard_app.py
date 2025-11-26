@@ -40,53 +40,49 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    /* 3D Flip Card Container */
-    .flip-card-container {
+    /* 3D Flip Animation Styles */
+    .card-container {
         perspective: 1000px;
         margin: 40px auto;
         max-width: 700px;
         min-height: 400px;
     }
-    
-    .flip-card-inner {
+    .card-flipper {
         position: relative;
         width: 100%;
+        height: 100%;
         min-height: 400px;
-        transition: transform 0.6s ease-in-out;
         transform-style: preserve-3d;
+        transition: transform 0.6s ease-in-out;
     }
-    
-    .flip-card-inner.flipped {
+    .card-flipper.flipped {
         transform: rotateY(180deg);
     }
-    
-    .flashcard {
-        background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
+    .card-face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        min-height: 400px;
+        backface-visibility: hidden;
         border-radius: 24px;
         padding: 60px 40px;
-        min-height: 400px;
         box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-        border: 1px solid #475569;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
-        position: absolute;
-        width: 100%;
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
     }
-    
-    .flashcard-front {
-        transform: rotateY(0deg);
+    .card-front {
+        background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
+        border: 1px solid #475569;
     }
-    
-    .flashcard-back {
+    .card-back {
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         border: 1px solid #059669;
         transform: rotateY(180deg);
     }
+    
     .card-text {
         color: white;
         line-height: 1.6;
@@ -168,32 +164,17 @@ st.markdown("""
         padding: 0 !important;
     }
     
-    /* Card list styling */
-    .card-list-item {
-        background: rgba(255,255,255,0.05);
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin: 8px 0;
-        border-left: 3px solid #4f46e5;
-        cursor: pointer;
-        transition: all 0.2s ease;
+    /* Jump to card input styling */
+    .stNumberInput {
+        max-width: 120px !important;
     }
-    .card-list-item:hover {
-        background: rgba(255,255,255,0.1);
-        border-left-color: #6366f1;
-        transform: translateX(4px);
-    }
-    .card-list-number {
-        color: #a5b4fc;
-        font-weight: 600;
-        margin-right: 12px;
-    }
-    .card-list-text {
-        color: #e2e8f0;
-    }
-    .current-card-item {
-        background: rgba(79, 70, 229, 0.2);
-        border-left-color: #10b981;
+    .stNumberInput > div > div > input {
+        text-align: center !important;
+        color: white !important;
+        background: rgba(255,255,255,0.1) !important;
+        border-radius: 8px !important;
+        border: 1px solid #475569 !important;
+        font-weight: 600 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -212,8 +193,10 @@ if 'file_loaded' not in st.session_state:
     st.session_state.file_loaded = False
 if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
+if 'font_size' not in st.session_state:
+    st.session_state.font_size = 28
 
-# --- Data Loading Function ---
+# --- Data Loading Function (FIXED) ---
 
 def load_flashcards(uploaded_file):
     file_extension = Path(uploaded_file.name).suffix.lower()
@@ -222,8 +205,10 @@ def load_flashcards(uploaded_file):
 
     try:
         if file_extension in ['.xlsx', '.xls']:
+            # Added header=None to read the first row as data
             df = pd.read_excel(uploaded_file, header=None)
         elif file_extension == '.csv':
+            # Added header=None to read the first row as data
             df = pd.read_csv(uploaded_file, header=None)
         elif file_extension == '.json':
             uploaded_file.seek(0)
@@ -236,10 +221,12 @@ def load_flashcards(uploaded_file):
                 return []
         
         if df is not None:
+            # Ensure we have at least 2 columns
             if df.shape[1] < 2:
                 st.error("File must have at least two columns: Question and Answer.")
                 return []
             
+            # Since header=None, columns are integers 0 and 1
             questions_col = df.columns[0]
             answers_col = df.columns[1]
             
@@ -247,6 +234,7 @@ def load_flashcards(uploaded_file):
                 question = str(row[questions_col]).strip()
                 answer = str(row[answers_col]).strip()
                 
+                # Basic validation to skip empty rows or 'nan' strings
                 if question and answer and question.lower() != 'nan' and answer.lower() != 'nan':
                     flashcards.append({'question': question, 'answer': answer})
                     
@@ -254,6 +242,43 @@ def load_flashcards(uploaded_file):
     except Exception as e:
         st.error(f"Error loading {file_extension.upper()} file: {e}")
         return []
+
+# --- Navigation and Control Functions ---
+
+def next_card():
+    if st.session_state.current_index < len(st.session_state.flashcards) - 1:
+        st.session_state.current_index += 1
+        st.session_state.show_answer = False
+
+def previous_card():
+    if st.session_state.current_index > 0:
+        st.session_state.current_index -= 1
+        st.session_state.show_answer = False
+
+def toggle_answer():
+    st.session_state.show_answer = not st.session_state.show_answer
+
+def jump_to_card():
+    target = st.session_state.jump_input - 1
+    if 0 <= target < len(st.session_state.flashcards):
+        st.session_state.current_index = target
+        st.session_state.show_answer = False
+
+def restart():
+    st.session_state.current_index = 0
+    st.session_state.show_answer = False
+
+def shuffle_cards():
+    if st.session_state.flashcards:
+        random.shuffle(st.session_state.flashcards)
+        st.session_state.current_index = 0
+        st.session_state.show_answer = False
+
+def reset_order():
+    if st.session_state.original_flashcards:
+        st.session_state.flashcards = st.session_state.original_flashcards.copy()
+        st.session_state.current_index = 0
+        st.session_state.show_answer = False
 
 # --- Main App Layout ---
 
@@ -312,80 +337,60 @@ else:
     with col1:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        if st.button("←", disabled=st.session_state.current_index == 0, key="prev"):
-            if st.session_state.current_index > 0:
-                st.session_state.current_index -= 1
-                st.session_state.show_answer = False
-                st.rerun()
+        st.button("←", on_click=previous_card, disabled=st.session_state.current_index == 0, key="prev")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        # Get font size from session state or set default
-        if 'font_size' not in st.session_state:
-            st.session_state.font_size = 28
-        
-        # Create unique key for this card to trigger flip animation
         flip_class = "flipped" if st.session_state.show_answer else ""
         
-        # Use a unique key based on card index to force re-render when card changes
-        card_key = f"card_{st.session_state.current_index}"
-        
+        # 3D Flip Card Container
         st.markdown(f"""
-        <div class="flip-card-container" key="{card_key}">
-            <div class="flip-card-inner {flip_class}">
-                <div class="flashcard flashcard-front">
+        <div class="card-container">
+            <div class="card-flipper {flip_class}">
+                <!-- Front of Card (Question) -->
+                <div class="card-face card-front">
                     <div class="card-label">QUESTION</div>
                     <p class="card-text" style="font-size: {st.session_state.font_size}px;">{current_card['question']}</p>
                 </div>
-                <div class="flashcard flashcard-back">
+                <!-- Back of Card (Answer) -->
+                <div class="card-face card-back">
                     <div class="card-label">ANSWER</div>
                     <p class="card-text" style="font-size: {st.session_state.font_size}px;">{current_card['answer']}</p>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
+        
         col_a, col_b, col_c = st.columns([2, 1, 2])
         with col_b:
-            button_text = "🔄 Flip Card" if not st.session_state.show_answer else "👁️ Hide Answer"
-            if st.button(button_text, use_container_width=True, key="flip-btn"):
-                st.session_state.show_answer = not st.session_state.show_answer
-                st.rerun()
+            button_text = "🔄 Flip Card"
+            if st.button(button_text, 
+                         on_click=toggle_answer, 
+                         use_container_width=True,
+                         key="flip-btn"):
+                pass
 
     with col3:
         st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        if st.button("→", disabled=st.session_state.current_index == total_cards - 1, key="next"):
-            if st.session_state.current_index < len(st.session_state.flashcards) - 1:
-                st.session_state.current_index += 1
-                st.session_state.show_answer = False
-                st.rerun()
+        st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Footer with progress and controls
     st.markdown("<br><br>", unsafe_allow_html=True)
-    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.2, 1.5, 0.8, 1])
+    col1_footer, col2_footer, col3_footer, col4_footer = st.columns([1.2, 1.2, 0.8, 1])
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
         with c1:
-            if st.button("🔢 Order", use_container_width=True, help="Reset to original file order", key="order_btn"):
-                if st.session_state.original_flashcards:
-                    st.session_state.flashcards = st.session_state.original_flashcards.copy()
-                    st.session_state.current_index = 0
-                    st.session_state.show_answer = False
-                    st.rerun()
+            if st.button("🔢 Order", on_click=reset_order, use_container_width=True, help="Reset to original file order"):
+                pass
         with c2:
-            if st.button("🔀 Shuffle", use_container_width=True, help="Randomize cards", key="shuffle_btn"):
-                if st.session_state.flashcards:
-                    random.shuffle(st.session_state.flashcards)
-                    st.session_state.current_index = 0
-                    st.session_state.show_answer = False
-                    st.rerun()
+            if st.button("🔀 Shuffle", on_click=shuffle_cards, use_container_width=True, help="Randomize cards"):
+                pass
         with c3:
-            if st.button("⏮️ Reset", use_container_width=True, help="Go back to first card", key="reset_btn"):
-                st.session_state.current_index = 0
-                st.session_state.show_answer = False
-                st.rerun()
+            if st.button("⏮️ Reset", on_click=restart, use_container_width=True, help="Go back to first card"):
+                pass
                 
     with col2_footer:
         progress = current_num / total_cards
@@ -394,20 +399,18 @@ else:
                     unsafe_allow_html=True)
     
     with col3_footer:
-        # Jump to card number input
-        jump_card = st.number_input(
-            "Jump to Card",
+        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px;'>Jump to:</p>", 
+                    unsafe_allow_html=True)
+        st.number_input(
+            "Jump to card",
             min_value=1,
             max_value=total_cards,
             value=current_num,
             step=1,
             key="jump_input",
-            help="Enter card number to jump directly"
+            on_change=jump_to_card,
+            label_visibility="collapsed"
         )
-        if jump_card != current_num:
-            st.session_state.current_index = jump_card - 1
-            st.session_state.show_answer = False
-            st.rerun()
     
     with col4_footer:
         col_metric, col_slider = st.columns([1, 1])
@@ -424,35 +427,6 @@ else:
                 label_visibility="collapsed"
             )
             st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Card List Expander
-    st.markdown("<br>", unsafe_allow_html=True)
-    with st.expander("📋 View All Cards", expanded=False):
-        st.markdown("<p style='color: #94a3b8; margin-bottom: 16px;'>Click any card to jump directly to it</p>", unsafe_allow_html=True)
-        
-        # Display cards in a scrollable list
-        for idx, card in enumerate(st.session_state.flashcards):
-            card_num = idx + 1
-            # Truncate question for display
-            question_preview = card['question'][:80] + "..." if len(card['question']) > 80 else card['question']
-            
-            # Highlight current card
-            is_current = idx == st.session_state.current_index
-            
-            col_list_1, col_list_2 = st.columns([0.15, 5])
-            with col_list_1:
-                if st.button(f"#{card_num}", key=f"card_btn_{idx}", use_container_width=True):
-                    st.session_state.current_index = idx
-                    st.session_state.show_answer = False
-                    st.rerun()
-            with col_list_2:
-                card_style = "background: rgba(79, 70, 229, 0.2); border-left: 3px solid #10b981;" if is_current else "background: rgba(255,255,255,0.05); border-left: 3px solid #4f46e5;"
-                st.markdown(f"""
-                    <div style="{card_style} border-radius: 8px; padding: 12px 16px; margin: 4px 0;">
-                        <span style="color: #e2e8f0;">{question_preview}</span>
-                        {' <span style="color: #10b981; font-weight: 600;">← Current</span>' if is_current else ''}
-                    </div>
-                """, unsafe_allow_html=True)
     
     st.markdown("""
         <script>

@@ -45,13 +45,13 @@ st.markdown("""
         perspective: 1000px;
         margin: 40px auto;
         max-width: 700px;
-        min-height: 500px;
+        min-height: 400px;
     }
     .card-flipper {
         position: relative;
         width: 100%;
         height: 100%;
-        min-height: 500px;
+        min-height: 400px;
         transform-style: preserve-3d;
         transition: transform 0.6s ease-in-out;
     }
@@ -62,8 +62,8 @@ st.markdown("""
         position: absolute;
         width: 100%;
         height: 100%;
-        min-height: 500px;
-        max-height: 600px;
+        min-height: 400px;
+        max-height: 500px;
         backface-visibility: hidden;
         border-radius: 24px;
         padding: 40px 40px;
@@ -84,20 +84,6 @@ st.markdown("""
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         border: 1px solid #059669;
         transform: rotateY(180deg);
-    }
-    
-    /* Mobile adjustments for taller cards */
-    @media (max-width: 768px) {
-        .card-container {
-            min-height: 550px;
-        }
-        .card-flipper {
-            min-height: 550px;
-        }
-        .card-face {
-            min-height: 550px;
-            max-height: 650px;
-        }
     }
     
     .card-text {
@@ -251,8 +237,6 @@ if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
 if 'font_size' not in st.session_state:
     st.session_state.font_size = 28
-if 'card_key' not in st.session_state:
-    st.session_state.card_key = 0
 
 # --- Data Loading Function (FIXED) ---
 
@@ -304,16 +288,14 @@ def load_flashcards(uploaded_file):
 # --- Navigation and Control Functions ---
 
 def next_card():
-    st.session_state.show_answer = False  # Reset flip state FIRST
     if st.session_state.current_index < len(st.session_state.flashcards) - 1:
         st.session_state.current_index += 1
-        st.session_state.card_key += 1  # Force re-render
+        st.session_state.show_answer = False
 
 def previous_card():
-    st.session_state.show_answer = False  # Reset flip state FIRST
     if st.session_state.current_index > 0:
         st.session_state.current_index -= 1
-        st.session_state.card_key += 1  # Force re-render
+        st.session_state.show_answer = False
 
 def toggle_answer():
     st.session_state.show_answer = not st.session_state.show_answer
@@ -321,21 +303,18 @@ def toggle_answer():
 def restart():
     st.session_state.current_index = 0
     st.session_state.show_answer = False
-    st.session_state.card_key += 1  # Force re-render
 
 def shuffle_cards():
     if st.session_state.flashcards:
         random.shuffle(st.session_state.flashcards)
         st.session_state.current_index = 0
         st.session_state.show_answer = False
-        st.session_state.card_key += 1  # Force re-render
 
 def reset_order():
     if st.session_state.original_flashcards:
         st.session_state.flashcards = st.session_state.original_flashcards.copy()
         st.session_state.current_index = 0
         st.session_state.show_answer = False
-        st.session_state.card_key += 1  # Force re-render
 
 # --- Main App Layout ---
 
@@ -365,7 +344,6 @@ if not st.session_state.file_loaded or not st.session_state.flashcards:
                     st.session_state.file_loaded = True
                     st.session_state.current_index = 0
                     st.session_state.show_answer = False
-                    st.session_state.card_key = 0
                     st.success(f"✅ Loaded {len(flashcards)} flashcards for: {st.session_state.app_title}!")
                     st.rerun()
                 else:
@@ -401,9 +379,9 @@ else:
     with col2:
         flip_class = "flipped" if st.session_state.show_answer else ""
         
-        # 3D Flip Card Container with unique key to force clean re-render
+        # 3D Flip Card Container
         st.markdown(f"""
-        <div class="card-container" key="card-{st.session_state.card_key}">
+        <div class="card-container">
             <div class="card-flipper {flip_class}">
                 <!-- Front of Card (Question) -->
                 <div class="card-face card-front">
@@ -477,7 +455,6 @@ else:
         if jump_card != current_num:
             st.session_state.current_index = jump_card - 1
             st.session_state.show_answer = False
-            st.session_state.card_key += 1  # Force re-render
             st.rerun()
     
     with col4_footer:

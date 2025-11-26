@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import random
+import time
 
 # --- Configuration and Styling ---
 
@@ -29,7 +30,6 @@ if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
 if 'font_size' not in st.session_state:
     st.session_state.font_size = 28
-# Track animation direction ('next' or 'prev')
 if 'anim_direction' not in st.session_state:
     st.session_state.anim_direction = 'next'
 
@@ -59,7 +59,7 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    /* --- FLIP TRANSITION ANIMATION --- */
+    /* --- ANIMATIONS --- */
     @keyframes flipIn {
         0% { transform: rotateY(90deg); opacity: 0; }
         100% { transform: rotateY(0deg); opacity: 1; }
@@ -68,7 +68,13 @@ st.markdown("""
     .animate-flip {
         animation: flipIn 0.6s cubic-bezier(0.4, 0.2, 0.2, 1) forwards;
     }
-    /* --- END ANIMATION --- */
+
+    /* Button Click Pulse Animation */
+    @keyframes buttonPress {
+        0% { transform: scale(0.96); }
+        50% { transform: scale(0.96); } /* Hold the press state */
+        100% { transform: scale(1); }   /* Return to normal */
+    }
 
     /* 3D Flip Card Styles */
     .card-container {
@@ -125,7 +131,7 @@ st.markdown("""
         z-index: 1;
     }
 
-    /* --- SPOILER FIX: Hide answer text immediately when not flipped --- */
+    /* Spoiler Fix */
     .card-back .card-text, .card-back .card-label {
         opacity: 0;
         transition: opacity 0s; 
@@ -160,47 +166,62 @@ st.markdown("""
     .card-face::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
     .card-face::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
     
-    /* --- BUTTON STYLING (UPDATED TO MATCH IMAGE) --- */
+    /* --- BUTTON STYLING --- */
     
     /* 1. Default Secondary Buttons (Order, Shuffle, Reset) - Dark & Outlined */
     .stButton > button {
-        background-color: rgba(30, 41, 59, 0.8) !important; /* Dark background like image */
+        background-color: rgba(30, 41, 59, 0.8) !important;
         color: white !important;
-        border: 1px solid #475569 !important; /* Thin border */
-        border-radius: 8px !important; /* Slightly more squared corners */
+        border: 1px solid #475569 !important;
+        border-radius: 8px !important;
         padding: 10px 20px !important;
         font-size: 15px !important;
         font-weight: 500 !important;
-        transition: all 0.3s ease !important;
         cursor: pointer !important;
         white-space: nowrap !important;
         min-width: 0 !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
+        /* Smooth transition for normal hover */
+        transition: background-color 0.3s, border-color 0.3s !important;
     }
     
     .stButton > button:hover {
-        background-color: #334155 !important; /* Slightly lighter on hover */
+        background-color: #334155 !important;
         border-color: #64748b !important;
-        transform: translateY(-2px);
     }
-    
-    /* 2. Primary Action Button (Flip Card) - Keep Bright Indigo */
-    /* We target the specific button using specific attribute selector if possible, 
-       or rely on the fact we will set type="primary" in Python */
+
+    /* Click Animation: When focused/active, scale down then ease back */
+    .stButton > button:focus:not(:active) {
+         animation: buttonPress 0.6s ease-out;
+    }
+    .stButton > button:active {
+        transform: scale(0.96);
+        transition: transform 0.1s;
+    }
+
+    /* 2. Primary Action Button (Flip Card) - Desaturated Blue */
     div[data-testid="stButton"] > button[kind="primary"] {
-        background: #4f46e5 !important; /* Bright Indigo */
+        /* Changed from #4f46e5 (Intense) to #5c6b8f (Desaturated Blue-Grey) */
+        background: #5c6b8f !important; 
         border: none !important;
-        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4) !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
     }
     
     div[data-testid="stButton"] > button[kind="primary"]:hover {
-        background: #6366f1 !important;
-        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6) !important;
+        /* Slightly lighter on hover */
+        background: #6e7da6 !important;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* Apply the same click animation to primary buttons */
+    div[data-testid="stButton"] > button[kind="primary"]:focus:not(:active) {
+        animation: buttonPress 0.6s ease-out;
     }
     
-    /* Navigation Arrow Buttons (Keep round) */
+    /* Navigation Arrow Buttons */
     .nav-button > button {
         border-radius: 50% !important;
         width: 56px !important;
@@ -219,7 +240,6 @@ st.markdown("""
         border: 2px dashed #475569;
     }
     
-    /* Layout Adjustments */
     [data-testid="stMetricValue"] { color: #a5b4fc !important; font-size: 24px !important; }
     [data-testid="stMetricLabel"] { color: #cbd5e1 !important; }
     div[data-testid="column"] { gap: 0 !important; }
@@ -349,7 +369,6 @@ else:
         st.markdown(f"<h1>🧠 {st.session_state.app_title}</h1>", unsafe_allow_html=True)
     with col2:
         st.markdown("<div class='nav-button'>", unsafe_allow_html=True)
-        # This button remains dark/secondary by default
         if st.button("📤 Upload New", use_container_width=True, key="new_upload"):
             st.session_state.file_loaded = False
             st.session_state.flashcards = []
@@ -387,7 +406,6 @@ else:
         
         col_a, col_b, col_c = st.columns([2, 1, 2])
         with col_b:
-            # IMPORTANT: Set type="primary" here to activate the Indigo style
             if st.button("🔄 Flip Card", type="primary", on_click=toggle_answer, use_container_width=True, key="flip-btn"):
                 pass
 
@@ -403,7 +421,6 @@ else:
     
     with col1_footer:
         c1, c2, c3 = st.columns(3)
-        # These buttons will now use the Default (dark) style defined in CSS
         with c1:
             if st.button("🔢 Order", on_click=reset_order, use_container_width=True): pass
         with c2:

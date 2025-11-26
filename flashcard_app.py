@@ -258,12 +258,6 @@ def previous_card():
 def toggle_answer():
     st.session_state.show_answer = not st.session_state.show_answer
 
-def jump_to_card():
-    target = st.session_state.jump_input - 1
-    if 0 <= target < len(st.session_state.flashcards):
-        st.session_state.current_index = target
-        st.session_state.show_answer = False
-
 def restart():
     st.session_state.current_index = 0
     st.session_state.show_answer = False
@@ -401,16 +395,21 @@ else:
     with col3_footer:
         st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px;'>Jump to:</p>", 
                     unsafe_allow_html=True)
-        st.number_input(
-            "Jump to card",
+        # Jump to card number input with dynamic key to force refresh
+        jump_card = st.number_input(
+            "Jump to Card",
             min_value=1,
             max_value=total_cards,
             value=current_num,
             step=1,
-            key="jump_input",
-            on_change=jump_to_card,
-            label_visibility="collapsed"
+            key=f"jump_input_{current_num}",
+            label_visibility="collapsed",
+            help="Enter card number to jump directly"
         )
+        if jump_card != current_num:
+            st.session_state.current_index = jump_card - 1
+            st.session_state.show_answer = False
+            st.rerun()
     
     with col4_footer:
         col_metric, col_slider = st.columns([1, 1])
@@ -427,24 +426,3 @@ else:
                 label_visibility="collapsed"
             )
             st.markdown("</div>", unsafe_allow_html=True)
-    
-    st.markdown("""
-        <script>
-            document.addEventListener('keydown', function(e) {
-                const prevButton = document.querySelector('[data-testid="stButton"] button[key="prev"]');
-                const nextButton = document.querySelector('[data-testid="stButton"] button[key="next"]');
-                const flipButton = document.querySelector('[data-testid="stButton"] button[key="flip-btn"]');
-                if (!prevButton || !nextButton || !flipButton) return;
-                if (e.key === 'ArrowLeft' || e.key === 'a') {
-                    e.preventDefault();
-                    if (!prevButton.disabled) prevButton.click();
-                } else if (e.key === 'ArrowRight' || e.key === 'd') {
-                    e.preventDefault();
-                    if (!nextButton.disabled) nextButton.click();
-                } else if (e.key === ' ' || e.key === 'Enter') {
-                    e.preventDefault();
-                    flipButton.click();
-                }
-            });
-        </script>
-        """, unsafe_allow_html=True)

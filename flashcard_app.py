@@ -29,6 +29,9 @@ if 'app_title' not in st.session_state:
     st.session_state.app_title = "Flashcard Review"
 if 'font_size' not in st.session_state:
     st.session_state.font_size = 28
+# Track animation direction ('next' or 'prev')
+if 'anim_direction' not in st.session_state:
+    st.session_state.anim_direction = 'next'
 
 # --- Custom CSS ---
 st.markdown("""
@@ -56,7 +59,7 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    /* --- NEW FLIP TRANSITION ANIMATION --- */
+    /* --- FLIP TRANSITION ANIMATION --- */
     @keyframes flipIn {
         0% { transform: rotateY(90deg); opacity: 0; }
         100% { transform: rotateY(0deg); opacity: 1; }
@@ -67,7 +70,7 @@ st.markdown("""
     }
     /* --- END ANIMATION --- */
 
-    /* 3D Flip Card Styles */
+    /* 3D Flip Card Styles (Updated for Animation) */
     .card-container {
         perspective: 1000px;
         margin: 40px auto;
@@ -97,17 +100,18 @@ st.markdown("""
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
         border-radius: 24px;
-        padding: 40px 40px;
+        padding: 60px 40px; /* Match original padding */
         box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         display: flex;
         flex-direction: column;
-        justify-content: flex-start;
+        justify-content: center; /* Match original alignment */
         align-items: center;
         text-align: center;
         overflow-y: auto;
         overflow-x: hidden;
     }
     
+    /* Original Colors Preserved */
     .card-front {
         background: linear-gradient(135deg, #2a344a 0%, #3e4a60 100%);
         border: 1px solid #475569;
@@ -140,7 +144,7 @@ st.markdown("""
         word-wrap: break-word;
         overflow-wrap: break-word;
         max-width: 100%;
-        padding: 20px 0;
+        /* Removed padding: 20px 0 to match original style */
     }
     .card-label {
         color: #e2e8f0;
@@ -158,17 +162,19 @@ st.markdown("""
     .card-face::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
     .card-face::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
     
-    /* UI Elements & Buttons */
+    /* UI Elements & Buttons (Updated for Alignment Fix) */
     .stButton > button {
         background: #4f46e5;
         color: white;
         border: none;
         border-radius: 12px;
-        padding: 10px 20px;
-        font-size: 15px;
+        padding: 12px 24px;
+        font-size: 16px;
         font-weight: 500;
         transition: all 0.3s ease;
         cursor: pointer;
+        
+        /* Fix for odd alignment/wrapping */
         white-space: nowrap;
         min-width: 0;
         display: inline-flex;
@@ -196,8 +202,12 @@ st.markdown("""
         min-width: 56px !important;
         padding: 0 !important;
         font-size: 24px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
     .nav-button > button:hover { background: #475569 !important; }
+    .nav-button:hover > button { background: #475569 !important; }
     
     /* File Uploader */
     .stFileUploader {
@@ -332,6 +342,7 @@ else:
     total_cards = len(st.session_state.flashcards)
     current_num = st.session_state.current_index + 1
 
+    # Header with dynamic title
     col1, col2 = st.columns([4, 1])
     with col1:
         st.markdown(f"<h1>🧠 {st.session_state.app_title}</h1>", unsafe_allow_html=True)
@@ -344,6 +355,7 @@ else:
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
+    # Main card area
     col1, col2, col3 = st.columns([1, 6, 1])
 
     with col1:
@@ -384,8 +396,8 @@ else:
         st.button("→", on_click=next_card, disabled=st.session_state.current_index == total_cards - 1, key="next")
         st.markdown("</div>", unsafe_allow_html=True)
 
+    # Footer
     st.markdown("<br><br>", unsafe_allow_html=True)
-    
     col1_footer, col2_footer, col3_footer, col4_footer = st.columns([2, 2, 1, 1])
     
     with col1_footer:

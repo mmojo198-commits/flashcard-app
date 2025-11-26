@@ -398,3 +398,33 @@ else:
         # Jump to card number input with dynamic key to force refresh
         jump_card = st.number_input(
             "Jump to Card",
+            min_value=1,
+            max_value=total_cards,
+            value=current_num,
+            step=1,
+            key=f"jump_input_{current_num}",
+            label_visibility="collapsed",
+            help="Enter card number to jump directly"
+        )
+        if jump_card != current_num:
+            st.session_state.current_index = jump_card - 1
+            st.session_state.show_answer = False
+            st.rerun()
+    
+    with col4_footer:
+        # FIXED: Removed nested columns, better vertical alignment
+        st.markdown("<div style='margin-top: 8px;'>", unsafe_allow_html=True)
+        st.metric("Completion", f"{int(progress * 100)}%")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        st.markdown("<div class='font-size-slider' style='margin-top: 8px;'>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #cbd5e1; font-size: 12px; margin-bottom: 2px;'>Font Size</p>", unsafe_allow_html=True)
+        st.session_state.font_size = st.slider(
+            "Font Size",
+            min_value=16,
+            max_value=48,
+            value=st.session_state.font_size,
+            step=2,
+            label_visibility="collapsed"
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
